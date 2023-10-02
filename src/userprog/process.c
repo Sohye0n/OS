@@ -21,7 +21,7 @@
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
-void get_filename(char*, char*);
+void get_filename(const char*, char*);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -32,7 +32,7 @@ process_execute (const char *file_name)
 {
   char *fn_copy;
   tid_t tid;
-  char* file_name_parsed=malloc(sizeof(char)*256);
+  char file_name_parsed[256];
   get_filename(file_name,file_name_parsed);
 
   /* Make a copy of FILE_NAME.
@@ -42,19 +42,23 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  if(filesys_open(file_name_parsed)==NULL) return -1;
+
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name_parsed, PRI_DEFAULT, start_process, fn_copy);
-  free(file_name_parsed);
+  //printf("process %s executing! id : %d\n",file_name_parsed,tid);
   
+
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
+
   return tid;
 }
 
 
 
 /*입력된 문자열에서 파일 이름만 가져오는 함수*/
-void get_filename(char* org, char* result){
+void get_filename(const char* org, char* result){
   //띄어쓰기 단위로 단어를 분리하면 됨.
   int i=0;
   //파일 이름 뒤에는 널문자나 띄어쓰기가 올 것임.
@@ -88,67 +92,67 @@ int get_arguments(char* org, char** result){
   return cnt;
 }
 
-//파싱된 입력을 토대로 스택에 집어넣는다
-void push(char* cmd, void**esp){
-  char** cmd_parsed=malloc(sizeof(char*)*256); //4kb
-  char* cmd_copy=malloc(sizeof(char)*256); //4kb
+// //파싱된 입력을 토대로 스택에 집어넣는다
+// void push(char* cmd, void**esp){
+//   char** cmd_parsed=malloc(sizeof(char*)*256); //4kb
+//   char* cmd_copy=malloc(sizeof(char)*256); //4kb
 
-  strlcpy(cmd_copy,cmd,strlen(cmd)+1);
-  //printf("%c\n",cmd[1]);
-  int cmd_num=get_arguments(cmd_copy,cmd_parsed);
-  char* esp_copy=*esp;
-  //printf("copy : %p, org : %p\n",esp_copy,*esp);
-  //printf("parsing end. argc : %d\n",cmd_num);
+//   strlcpy(cmd_copy,cmd,strlen(cmd)+1);
+//   //printf("%c\n",cmd[1]);
+//   int cmd_num=get_arguments(cmd_copy,cmd_parsed);
+//   char* esp_copy=*esp;
+//   //printf("copy : %p, org : %p\n",esp_copy,*esp);
+//   //printf("parsing end. argc : %d\n",cmd_num);
   
-  //명령어들부터 집어넣는다.
-  //오른쪽 끝부터 먼저 들어간다.
-  int tmp,cmd_length=0;
-  for(int i=cmd_num-1; i>=0; i--){
-    tmp=strlen(cmd_parsed[i])+1; //null문자 포함
-    cmd_length+=tmp;
-    *esp=*esp-tmp;
-    strlcpy(*esp,cmd_parsed[i],tmp);
-    //printf("address : %p | token : %s\n",*esp,cmd_parsed[i]);
-  }
+//   //명령어들부터 집어넣는다.
+//   //오른쪽 끝부터 먼저 들어간다.
+//   int tmp,cmd_length=0;
+//   for(int i=cmd_num-1; i>=0; i--){
+//     tmp=strlen(cmd_parsed[i])+1; //null문자 포함
+//     cmd_length+=tmp;
+//     *esp=*esp-tmp;
+//     strlcpy(*esp,cmd_parsed[i],tmp);
+//     //printf("address : %p | token : %s\n",*esp,cmd_parsed[i]);
+//   }
 
-  //집어넣은 명령어의 총 길이가 4의 배수인지 확인한다(워드사이즈 32비트)
-  *esp=*esp-4+(cmd_length%4);
-  //printf("addresss : %p\n",*esp);
+//   //집어넣은 명령어의 총 길이가 4의 배수인지 확인한다(워드사이즈 32비트)
+//   *esp=*esp-4+(cmd_length%4);
+//   //printf("addresss : %p\n",*esp);
 
-  //명령어들의 주소를 집어넣는다.
-  //null문자부터 먼저 집어넣는다.
-  *esp=*esp-4; 
-  **(uint32_t **)esp=0;
-  //printf("addresss : %p\n",*esp);
+//   //명령어들의 주소를 집어넣는다.
+//   //null문자부터 먼저 집어넣는다.
+//   *esp=*esp-4; 
+//   **(uint32_t **)esp=0;
+//   //printf("addresss : %p\n",*esp);
 
-  //4개의 명령어의 주소값을 집어넣는다.
-  for(int i=cmd_num-1; i>=0; i--){
-    *esp=*esp-4;
-    esp_copy-=( strlen(cmd_parsed[i]) + 1 );
-    **(uint32_t **)esp=esp_copy;
-    //printf("addresss : %p | data : %0x\n",*esp,**(uint32_t **)esp);
-  } 
+//   //4개의 명령어의 주소값을 집어넣는다.
+//   for(int i=cmd_num-1; i>=0; i--){
+//     *esp=*esp-4;
+//     esp_copy-=( strlen(cmd_parsed[i]) + 1 );
+//     **(uint32_t **)esp=esp_copy;
+//     //printf("addresss : %p | data : %0x\n",*esp,**(uint32_t **)esp);
+//   } 
  
-  //argv배열의 주소값을 집어넣는다.
-  *esp-=4;
-  **(uint32_t**)esp=*esp+4;
-  //printf("addresss : %p | data : %0x\n",*esp,**(uint32_t **)esp);
+//   //argv배열의 주소값을 집어넣는다.
+//   *esp-=4;
+//   **(uint32_t**)esp=*esp+4;
+//   //printf("addresss : %p | data : %0x\n",*esp,**(uint32_t **)esp);
 
-  //argc를 넣는다
-  *esp-=4;
-  **(uint32_t**)esp=cmd_num;
-  //printf("addresss : %p | data : %d\n",*esp,**(uint32_t **)esp);
+//   //argc를 넣는다
+//   *esp-=4;
+//   **(uint32_t**)esp=cmd_num;
+//   //printf("addresss : %p | data : %d\n",*esp,**(uint32_t **)esp);
 
-  //return address를 넣어준다.
-  *esp-=4;
-  **(uint32_t **)esp=0;
-  //printf("addresss : %p\n",*esp);
+//   //return address를 넣어준다.
+//   *esp-=4;
+//   **(uint32_t **)esp=0;
+//   //printf("addresss : %p\n",*esp);
 
-  //hex_dump(*esp,*esp,100,1);
-  free(cmd_copy);
-  free(cmd_parsed);
-  //hex_dump(*esp,*esp,100,1);
-}
+//   //hex_dump(*esp,*esp,100,1);
+//   free(cmd_copy);
+//   free(cmd_parsed);
+//   //hex_dump(*esp,*esp,100,1);
+// }
 
 
 
@@ -161,21 +165,16 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
-  /*파일 이름을 파싱해줌*/
-  char parsed_file_name[256]; //스택은 최대 4kb
-  get_filename(file_name,parsed_file_name);
-
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (parsed_file_name, &if_.eip, &if_.esp); //입력으로 받은 프로그램이 실행 가능한지 체크 후 스택을 할당해줌.
-  if(success) push(file_name,&if_.esp);
-  else{
+  success = load (file_name, &if_.eip, &if_.esp); //입력으로 받은 프로그램이 실행 가능한지 체크 후 스택을 할당해줌.
+  
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  }
+  
   if (!success) 
     thread_exit ();
 
@@ -199,10 +198,46 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
-    int i;
-  for (i = 0; i < 1000000000; i++);
+  // int i;
+  // for (i = 0; i < 1000000000; i++);
+  // return -1;
+
+  /*prj1에서 추가한 내용*/
+  struct thread* mychild; //자식 프로세스를 저장할 포인터
+  struct thread* me=thread_current(); //현재 실행 중인 프로세스 = 나
+  struct list_elem* mychild_key; //자식 프로세스를 찾아올 키
+  struct list_elem* last_key=list_end(&me->child_list);
+  int exit_status;
+  //printf("process_wait start. I'm %d(%s), waiting for %d\n",me->tid,me->name,child_tid);
+  //printf("last : %p\n",last_key);
+
+  //부모 프로세스의 자식 프로세스 키들을 하나씩 가져옴
+  //가져온 자식 프로세스 키를 통해 전체 프로세스 리스트에서 자식 프로세스의 몸통을 가져옴
+  //파라미터로 받은 tid와 이 자식프로세스의 tid를 비교.
+  mychild_key=list_begin(&me->child_list); //부모 프로세스의 첫번째 자식 프로세스 키
+  while(1){
+    mychild=list_entry(mychild_key,struct thread,Iamyourchild); //키로 프로세스 몸통 찾기 //부모에서가 아니라 전체 프로세스에서 찾음
+    //printf("address:%p id:%d\n",mychild_key,mychild->tid);
+    
+    if(mychild->tid==child_tid){ //일치한다면
+      //printf("1 my tid:%d child tid:%d\n",me->tid,mychild->tid);
+      sema_down(&mychild->state); //세마포어 1 줄임 (자식 종료까지 기다림)
+      //printf("2 my tid:%d child tid:%d\n",me->tid,mychild->tid);
+      list_remove(mychild_key); //자식 리스트에서 제거
+      //printf("3 my tid:%d child tid:%d\n",me->tid,mychild->tid);
+      exit_status=mychild->exit_status; //자식의 exit_status 저장
+      sema_up(&mychild->mem);
+      //printf("process_wait end for child %d\n",child_tid);
+      return exit_status;
+    }
+
+    if(mychild_key==last_key) break;
+    mychild_key=list_next(mychild_key); //일치하지 않는다면 다음 원소를 탐색
+  }
+
+  //printf("process_wait end\n");
   return -1;
 }
 
@@ -228,7 +263,10 @@ process_exit (void)
       cur->pagedir = NULL;
       pagedir_activate (NULL);
       pagedir_destroy (pd);
+      //printf("cur thread : %s, sema up!\n",cur->name);
     }
+    sema_up(&cur->state);
+    sema_down(&cur->mem);
 }
 
 /* Sets up the CPU for running user code in the current
@@ -336,8 +374,13 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
+  /*파일 이름을 파싱해줌*/
+  char parsed_file_name[256]; //스택은 최대 4kb
+  get_filename(file_name,parsed_file_name);
   /* Open executable file. */
-  file = filesys_open (file_name);
+  file = filesys_open (parsed_file_name);
+
+  //printf("%d %d\n",strlen(file_name),(file_name[12]=='\0'));
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -427,8 +470,63 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* Set up stack. */
   if (!setup_stack (esp))
     goto done;
-  /* 여기로 코드 옮기기
-  */
+
+  char* cmd_parsed[256]; //4kb
+  char cmd_copy[256]; //4kb
+
+  strlcpy(cmd_copy,file_name,strlen(file_name)+1);
+  //printf("%c\n",cmd[1]);
+  int cmd_num=get_arguments(cmd_copy,cmd_parsed);
+  char* esp_copy=*esp;
+  //printf("copy : %p, org : %p\n",esp_copy,*esp);
+  //printf("parsing end. argc : %d\n",cmd_num);
+  
+  //명령어들부터 집어넣는다.
+  //오른쪽 끝부터 먼저 들어간다.
+  int tmp,cmd_length=0;
+  for(int i=cmd_num-1; i>=0; i--){
+    tmp=strlen(cmd_parsed[i])+1; //null문자 포함
+    cmd_length+=tmp;
+    *esp=*esp-tmp;
+    strlcpy(*esp,cmd_parsed[i],tmp);
+    //printf("address : %p | token : %s\n",*esp,cmd_parsed[i]);
+  }
+
+  //집어넣은 명령어의 총 길이가 4의 배수인지 확인한다(워드사이즈 32비트)
+  *esp=*esp-4+(cmd_length%4);
+  //printf("addresss : %p\n",*esp);
+
+  //명령어들의 주소를 집어넣는다.
+  //null문자부터 먼저 집어넣는다.
+  *esp=*esp-4; 
+  **(uint32_t **)esp=0;
+  //printf("addresss : %p\n",*esp);
+
+  //4개의 명령어의 주소값을 집어넣는다.
+  for(int i=cmd_num-1; i>=0; i--){
+    *esp=*esp-4;
+    esp_copy-=( strlen(cmd_parsed[i]) + 1 );
+    **(uint32_t **)esp=esp_copy;
+    //printf("addresss : %p | data : %0x\n",*esp,**(uint32_t **)esp);
+  }
+
+    //argv배열의 주소값을 집어넣는다.
+    *esp-=4;
+    **(uint32_t**)esp=*esp+4;
+    //printf("addresss : %p | data : %0x\n",*esp,**(uint32_t **)esp);
+
+    //argc를 넣는다
+    *esp-=4;
+    **(uint32_t**)esp=cmd_num;
+    //printf("addresss : %p | data : %d\n",*esp,**(uint32_t **)esp);
+
+    //return address를 넣어준다.
+    *esp-=4;
+    **(uint32_t **)esp=0;
+    //printf("addresss : %p\n",*esp);
+
+    //hex_dump(*esp,*esp,100,1);
+    //hex_dump(*esp,*esp,100,1);
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
 

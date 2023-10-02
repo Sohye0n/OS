@@ -98,6 +98,7 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -467,6 +468,14 @@ init_thread (struct thread *t, const char *name, int priority)
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
+
+  /*prj1에서 추가한 내용*/
+  list_init(&t->child_list); //지금 생성되는 프로세스의 자식프로세스 리스트 초기화
+  //printf("insert into %d\n",running_thread()->tid);
+  list_push_back( &(running_thread()->child_list) , &(t->Iamyourchild) ); //현재 프로세스(부모)의 자식프로세스 리스트에 내 키 집어넣기
+  //여기서 thread_current()쓰면 안됨.
+  sema_init(&(t->state),0); //지금 생성되는 프로세스의 세마포어를 0으로. 프로세스가 종료되면서 세마포어는 1로 바뀐다.
+  sema_init(&t->mem,0);
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

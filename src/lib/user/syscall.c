@@ -60,6 +60,23 @@
                : "memory");                                     \
           retval;                                               \
         })
+  
+/*max of four int 시스템콜을 구현하기 위함*/
+#define syscall4(NUMBER, ARG0, ARG1, ARG2, ARG3)                      \
+        ({                                                      \
+          int retval;                                           \
+          asm volatile                                          \
+            ("pushl %[arg3]; pushl %[arg2]; pushl %[arg1]; pushl %[arg0]; "    \
+             "pushl %[number]; int $0x30; addl $20, %%esp"      \
+               : "=a" (retval)                                  \
+               : [number] "i" (NUMBER),                         \
+                 [arg0] "r" (ARG0),                             \
+                 [arg1] "r" (ARG1),                             \
+                 [arg2] "r" (ARG2),                             \
+                 [arg3] "r" (ARG3)                              \
+               : "memory");                                     \
+          retval;                                               \
+        })
 
 void
 halt (void) 
@@ -139,6 +156,16 @@ void
 close (int fd)
 {
   syscall1 (SYS_CLOSE, fd);
+}
+
+int
+fibonacci(int num){
+  return syscall1(SYS_FIBONACCI, num);
+}
+
+int
+max_of_four_int(int n1, int n2, int n3, int n4){
+  return syscall4(SYS_MAX_OF_FOUR_INT, n1, n2, n3, n4);
 }
 
 mapid_t
