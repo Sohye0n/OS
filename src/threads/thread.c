@@ -476,6 +476,8 @@ init_thread (struct thread *t, const char *name, int priority)
   //여기서 thread_current()쓰면 안됨.
   sema_init(&(t->state),0); //지금 생성되는 프로세스의 세마포어를 0으로. 프로세스가 종료되면서 세마포어는 1로 바뀐다.
   sema_init(&t->mem,0);
+
+  /*prj2에서 추가한 내용*/
   t->fdindex=3;
 }
 

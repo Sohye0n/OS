@@ -153,6 +153,7 @@ page_fault (struct intr_frame *f)
   /*내가 추가함... 테케 bad-sp 땜에. 커널이 유저 영역을 참조하려고 하면 막아야 함. 근데 커널이 왜 참조하지....*/
   if (!user) exit(-1);
   if (is_kernel_vaddr(fault_addr)) exit(-1);
+  if (not_present) exit(-1);
 
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to

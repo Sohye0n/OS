@@ -148,7 +148,6 @@ bool remove (const char *file)
 int open (const char *file)
 {
   //printf("syscall_open\n");
-  //printf("file name : %s\n",file);
   if(file==NULL){
     exit(-1);
   }
@@ -198,7 +197,7 @@ int filesize (int fd)
 
 int read (int fd, void *buffer, unsigned size)
 {
-  //printf("sys_read. fd : %d size :%d\n",fd,size);
+  //printf("sys_read. fd : %d size :%d\n buf addr: %p buf in: %s\n",fd,size,buffer,buffer);
   //정상적으로 파일을 열 수 없음
   if(fd>thread_current()->fdindex) return -1;
   //close된 파일
@@ -229,6 +228,7 @@ int read (int fd, void *buffer, unsigned size)
 
 int write (int fd, const void *buffer, unsigned size)
 {
+  //printf("buffer addr: %p buffer string:%s\n",buffer,buffer);
   //정상적인 파일디스크립터 번호가 아님
   if(fd<1 || fd>thread_current()->fdindex) return -1;
   //close된 파일
@@ -239,7 +239,9 @@ int write (int fd, const void *buffer, unsigned size)
 
   //STDOUT 
   if(fd==1){
+    //printf("putbuf start\n");
     putbuf(buffer,size);
+    //printf("putbuf end\n");
     return size;
   } 
 

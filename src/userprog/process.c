@@ -46,7 +46,7 @@ process_execute (const char *file_name)
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name_parsed, PRI_DEFAULT, start_process, fn_copy);
-  //printf("process %s executing! id : %d\n",file_name_parsed,tid);
+  printf("process %s executing! id : %d\n",file_name_parsed,tid);
   
 
   if (tid == TID_ERROR)
@@ -170,8 +170,10 @@ start_process (void *file_name_)
   /* If load failed, quit. */
   palloc_free_page (file_name);
   
-  if (!success) 
-    thread_exit ();
+  if (!success)
+    /*prj2에서 이 부분을 주석처리함*/
+    //thread_exit ();
+    exit(-1);
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -205,7 +207,7 @@ process_wait (tid_t child_tid)
   struct list_elem* mychild_key; //자식 프로세스를 찾아올 키
   struct list_elem* last_key=list_end(&me->child_list);
   int exit_status;
-  //printf("process_wait start. I'm %d(%s), waiting for %d\n",me->tid,me->name,child_tid);
+  printf("process_wait start. I'm %d(%s), waiting for %d\n",me->tid,me->name,child_tid);
   //printf("last : %p\n",last_key);
 
   //부모 프로세스의 자식 프로세스 키들을 하나씩 가져옴
@@ -224,7 +226,7 @@ process_wait (tid_t child_tid)
       //printf("3 my tid:%d child tid:%d\n",me->tid,mychild->tid);
       exit_status=mychild->exit_status; //자식의 exit_status 저장
       sema_up(&mychild->mem);
-      //printf("process_wait end for child %d\n",child_tid);
+      printf("process_wait end for child %d\n",child_tid);
       return exit_status;
     }
 
