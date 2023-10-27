@@ -71,6 +71,12 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
+/*prj3에서 추가함*/
+bool is_idle_thread(struct thread* t){
+  return(t==idle_thread);
+}
+
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -468,7 +474,8 @@ init_thread (struct thread *t, const char *name, int priority)
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
-
+  t->wake_tick=0;
+#ifdef USERPROG
   /*prj1에서 추가한 내용*/
   list_init(&t->child_list); //지금 생성되는 프로세스의 자식프로세스 리스트 초기화
   //printf("insert into %d\n",running_thread()->tid);
@@ -481,6 +488,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->fdindex=3;
   sema_init(&t->load_lock,0);
   t->load_success=1;
+#endif
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

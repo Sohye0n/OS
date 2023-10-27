@@ -108,10 +108,14 @@ struct thread
     struct semaphore load_lock;
     int load_success;
 #endif
+   int64_t wake_tick; //깨어나야 할 틱 추가
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
+
+/*prj3에서 추가함*/
+bool is_idle_thread(struct thread* t);
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.

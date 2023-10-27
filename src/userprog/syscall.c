@@ -9,7 +9,7 @@
 #include "threads/vaddr.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
- 
+  
 struct file{
   struct inode *inode;
   off_t pos;
@@ -325,7 +325,7 @@ unsigned tell (int fd)
 void close (int fd)
 {
   //fd가 디스크립터 테이블에 존재했었나?
-  if(thread_current()->fdindex<fd) return;
+  if(thread_current()->fdindex<fd) exit(-1); //원래 리턴
 
   //fd는 현재 open 상태인가?
   if(thread_current()->fd[fd]){

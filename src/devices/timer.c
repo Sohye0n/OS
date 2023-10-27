@@ -17,6 +17,10 @@
 #error TIMER_FREQ <= 1000 recommended
 #endif
 
+/*prj3에서 직접 추가함*/
+//블록된 스레드를 저장할 리스트
+static struct list sleeping_list;
+
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
 
@@ -37,6 +41,8 @@ timer_init (void)
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+  /*sleeping 중인 리스트를 초기화*/
+  list_init(&sleeping_list);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -89,11 +95,28 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
+  /*timer가 실행될 동안은 다른 인터럽트를 비활성화한다.*/
+  enum intr_level old_level;
   int64_t start = timer_ticks ();
 
   ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+  old_level = intr_disable ();
+  // while (timer_elapsed (start) < ticks) 
+  //   thread_yield ();
+  /*busy waiting 하지 말고 이 함수를 호출한 스레드를 sleeping_list에 삽입*/
+  struct thread* cur=thread_current();
+  //printf("making thread %s to sleep\n",cur->name);
+
+  //idle 스레드가 아니면 삽입
+  if(!is_idle_thread(cur)){
+    cur->wake_tick=start+ticks;
+    list_push_back(&sleeping_list,&cur->elem);
+    thread_block();
+  }
+
+  /*모든 끝났으면 다시 인터럽트를 받아들이자*/
+  intr_set_level(old_level);
+
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -171,7 +194,31 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
+
+  //이제 깨워주는 작업도 하자
+  struct list_elem* start=list_begin(&sleeping_list);
+  struct list_elem* end=list_end(&sleeping_list);
+  struct list_elem* i=start;
+  struct thread* t;
+
+  //printf("timer interrupt here\n");
+  if(!list_empty(&sleeping_list)){
+    while(1){
+      t=list_entry(i,struct thread,elem);
+      //printf("thread : %s, wake_tick : %d\n",t->name,t->wake_tick);
+      //일어나야 할 스레드를 찾았다.
+      if(ticks >= (t->wake_tick)){
+        i=list_remove(i); //remove from sleeping list
+        thread_unblock(t); //change state to ready and push at ready list
+      }
+      else i=list_next(i);
+
+      if(i==end || i==NULL) break;
+    }
+  }
+
   thread_tick ();
+
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
