@@ -216,7 +216,6 @@ timer_interrupt (struct intr_frame *args UNUSED)
       if(i==end || i==NULL) break;
     }
   }
-
   thread_tick ();
 
 }

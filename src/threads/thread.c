@@ -11,6 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/fixed_point.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -70,6 +71,7 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
+static int load_avg;
 
 /*prj3에서 추가함*/
 bool is_idle_thread(struct thread* t){
@@ -86,7 +88,7 @@ bool is_idle_thread(struct thread* t){
 
    After calling this function, be sure to initialize the page
    allocator before trying to create any threads with
-   thread_create().
+   thread_create().init_thread
 
    It is not safe to call thread_current() until this function
    finishes. */
@@ -104,6 +106,10 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+  /*prj3에서 추가함*/
+  initial_thread->nice=0;
+  initial_thread->recent_cpu=0;
+  /*prj3에서 추가함*/
 
 }
 
@@ -115,7 +121,8 @@ thread_start (void)
   /* Create the idle thread. */
   struct semaphore idle_started;
   sema_init (&idle_started, 0);
-  thread_create ("idle", PRI_MIN, idle, &idle_started);
+  /*prj3에서 MIN에서 DEFAULT로 수정함*/
+  thread_create ("idle", PRI_DEFAULT, idle, &idle_started);
 
   /* Start preemptive thread scheduling. */
   intr_enable ();
@@ -141,10 +148,28 @@ thread_tick (void)
   else
     kernel_ticks++;
 
+  /*prj3*/
+  #ifdef USERPROG
+  thread_wake_up();
+  if(thread_prior_aging==true || thread_mlfqs==true) thread_aging(thread_ticks+1);
+  #endif
+  /*prj3*/
+
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
     intr_yield_on_return ();
+
 }
+
+/*prj3*/
+void thread_aging(int64_t ticks){
+  //struct thread *t=thread_current();
+  //t->priority+=1;
+  printf("aging\n");
+  update_rc_la();
+  if(ticks%4==0) update_priority();
+}
+/*prj3*/
 
 /* Prints thread statistics. */
 void
@@ -207,6 +232,14 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
+  //printf("%d thread(%s)\n",thread_current()->tid,thread_current()->name);
+
+  /*prj3에서 추가*/
+  //thread_unblock()은 스케줄링 안해줌. yield는 해줌.
+  if(thread_current()->priority < priority) {
+   // printf("%d thread(%p)\n",thread_current()->tid,thread_current()->name);
+    thread_yield();
+  }
 
   return tid;
 }
@@ -222,9 +255,59 @@ thread_block (void)
 {
   ASSERT (!intr_context ());
   ASSERT (intr_get_level () == INTR_OFF);
-
+  
   thread_current ()->status = THREAD_BLOCKED;
   schedule ();
+}
+
+//레디큐에 우선순위 순으로 집어넣기
+void insert_in_p_order(struct list* list, struct thread* t){
+  
+  struct list_elem* start=list_begin(list);
+  struct list_elem* end=list_end(list);
+  struct list_elem* i=start;
+  struct thread* cur;
+
+
+  //레디큐가 비어있으면 바로 삽입
+  if(list_empty(list)) list_push_back(list,&t->elem);
+
+  //레디큐에 원소가 있을 때
+  else{
+    //t가 제일 앞
+    cur=list_entry(i,struct thread,elem);
+    if(cur->priority < t->priority) list_push_front(list,&t->elem);
+
+    //t가 중간이나 마지막
+    else{
+      while(1){
+        cur=list_entry(i,struct thread,elem);
+        //t가 가장 마지막에 삽입(cur이 마지막 원소고, t보다 우선순위 높음)
+        //t가 중간에 삽입(cur이 마지막 원소가 아니고, t보다 우선순위 이상. cur 다음은 낮음.)
+        if(cur->priority>=t->priority){
+
+          //t가 마지막
+          if(i==end){
+            list_push_back(list,&t->elem);
+            break;
+          }
+
+          //t가 중간
+          else if(list_entry(list_next(i),struct thread,elem)->priority < t->priority){
+            //list_splice(&t->elem,&(list_entry(list_next(i),struct thread,elem)->elem),end);
+            (t->elem).next=i->next;
+            i->next->prev=&t->elem;
+
+            (t->elem).prev=i;
+            i->next=&t->elem;
+            
+            break;
+          }
+        }
+        i=list_next(i);
+      }
+    }
+  }
 }
 
 /* Transitions a blocked thread T to the ready-to-run state.
@@ -244,14 +327,15 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  //list_push_back(&ready_list,&t->elem);
+  insert_in_p_order(&ready_list, t);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
 
 /* Returns the name of the running thread. */
 const char *
-thread_name (void) 
+thread_name (void)
 {
   return thread_current ()->name;
 }
@@ -314,8 +398,10 @@ thread_yield (void)
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
-  if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+  if (cur != idle_thread){
+    insert_in_p_order(&ready_list, cur);
+    //list_push_back (&ready_list, &cur->elem);
+  }
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -342,7 +428,9 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
+  int old_priority=thread_current()->priority;
   thread_current ()->priority = new_priority;
+  if(old_priority > new_priority) thread_yield();
 }
 
 /* Returns the current thread's priority. */
@@ -354,8 +442,9 @@ thread_get_priority (void)
 
 /* Sets the current thread's nice value to NICE. */
 void
-thread_set_nice (int nice UNUSED) 
+thread_set_nice (int nice) 
 {
+  thread_current()->nice=nice;
   /* Not yet implemented. */
 }
 
@@ -364,7 +453,7 @@ int
 thread_get_nice (void) 
 {
   /* Not yet implemented. */
-  return 0;
+  return thread_current()->nice;
 }
 
 /* Returns 100 times the system load average. */
@@ -372,7 +461,8 @@ int
 thread_get_load_avg (void) 
 {
   /* Not yet implemented. */
-  return 0;
+  int ret=i_mul_f(100,load_avg)/F;
+  return ret;
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
@@ -380,8 +470,64 @@ int
 thread_get_recent_cpu (void) 
 {
   /* Not yet implemented. */
-  return 0;
+  int ret=i_mul_f(100,thread_current()->recent_cpu)/F;
+  return ret;
 }
+
+//이건 매초 업데이트
+//매초 부르는게 대체 무슨 의미가 있나...라고 생각했는데 타이머 인터럽트마다 rc 1 증가함.
+//그럼 타이머 인터럽트 내부에서 running 스레드의 rc를 1 증가시킴 -> update_rc_la() 로 하면 됨.
+void update_rc_la(){
+
+  //load_avg를 업데이트 한다.
+  int ready_threads=list_size(&ready_list);
+  if(!is_idle_thread(thread_current())) ready_threads+=1;
+  load_avg=i_div_f(60, i_add_f(ready_threads , i_mul_f(59 , load_avg)));
+
+  //이를 토대로 recent_cpu를 업데이트 한다.
+  //status에 무관하게 모든 스레드를 업데이트 해준다.
+  struct list_elem* start=list_begin(&all_list);
+  struct list_elem* end=list_end(&all_list);
+  struct list_elem* i=start;
+  struct thread* t;
+
+  int mul_nice_add_rc=f_div_f(i_mul_f(2 , load_avg) , i_add_f(1 , i_mul_f(2,load_avg)));
+
+  //idle 스레드 제외하고 rc 업데이트
+  while(1){
+    t=list_entry(i,struct thread,allelem);
+    if(!is_idle_thread(t)) t->recent_cpu=i_add_f(t->nice , f_mul_f(t->recent_cpu , mul_nice_add_rc))/F;
+    if(i==end) break;
+    i=list_next(i);
+  }
+
+}
+
+//이건 4초마다 업데이트.
+//RR의 time quantum이 4인 듯?
+void update_priority(){
+
+  //status에 무관하게 모든 스레드를 업데이트 해준다.
+  struct list_elem* start=list_begin(&all_list);
+  struct list_elem* end=list_end(&all_list);
+  struct list_elem* i=start;
+  struct thread* t;
+
+  //idle 스레드 제외하고 priority 업데이트
+  while(1){
+    t=list_entry(i,struct thread,allelem);
+    if(!is_idle_thread(t)) t->priority=f_sub_f(PRI_MAX*F , f_add_f(i_div_f(t->recent_cpu , 4) , i_mul_f(2 , t->nice)))/F;
+    
+    //maximum보다 더 커지면 maximum으로 세팅.
+    if(t->priority > PRI_MAX) t->priority=PRI_MAX;
+    else if(t->priority < PRI_MIN) t->priority=PRI_MIN;
+    
+    if(i==end) break;
+    i=list_next(i);
+  }
+
+}
+
 
 /* Idle thread.  Executes when no other thread is ready to run.
 
@@ -483,11 +629,20 @@ init_thread (struct thread *t, const char *name, int priority)
   //여기서 thread_current()쓰면 안됨.
   sema_init(&(t->state),0); //지금 생성되는 프로세스의 세마포어를 0으로. 프로세스가 종료되면서 세마포어는 1로 바뀐다.
   sema_init(&t->mem,0);
+  /*prj1에서 추가한 내용*/
 
   /*prj2에서 추가한 내용*/
   t->fdindex=3;
   sema_init(&t->load_lock,0);
   t->load_success=1;
+  /*prj2에서 추가한 내용*/
+
+  /*prj3에서 추가한 내용*/
+  if(!is_idle_thread(t)){
+    t->nice=running_thread()->nice; //부모 스레드의 nice 값으로
+    t->recent_cpu=running_thread()->recent_cpu; //부모 스레드의 recent_cpu 값으로
+  }
+  /*prj3에서 추가한 내용*/
 #endif
 }
 
@@ -512,10 +667,12 @@ alloc_frame (struct thread *t, size_t size)
 static struct thread *
 next_thread_to_run (void) 
 {
-  if (list_empty (&ready_list))
+  if (list_empty (&ready_list)){
     return idle_thread;
-  else
+  }
+  else{
     return list_entry (list_pop_front (&ready_list), struct thread, elem);
+  }
 }
 
 /* Completes a thread switch by activating the new thread's page

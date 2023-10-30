@@ -113,11 +113,34 @@ sema_up (struct semaphore *sema)
   ASSERT (sema != NULL);
 
   old_level = intr_disable ();
-  if (!list_empty (&sema->waiters)) 
-    thread_unblock (list_entry (list_pop_front (&sema->waiters),
-                                struct thread, elem));
+  if (!list_empty (&sema->waiters)){
+    struct list_elem* start=list_begin(&sema->waiters);
+    struct list_elem* end=list_end(&sema->waiters);
+    struct list_elem* i=start;
+    struct list_elem* max_elem;
+    struct thread* cur, *max_thread;
+    int max_priority=-1;
+
+    //waiter 중 가장 높은 priority를 가진 프로세스를 선택함.
+    while(1){
+      cur=list_entry(i,struct thread,elem);
+      if(cur->priority > max_priority){
+        max_priority=cur->priority;
+        max_thread=cur;
+        max_elem=i;
+      }
+      if(i==end) break;
+      i=list_next(i);
+    }
+
+    //이 프로세스를 제거한다.
+    list_remove(max_elem);
+    thread_unblock(max_thread);
+  }
   sema->value++;
   intr_set_level (old_level);
+
+  thread_yield();
 }
 
 static void sema_test_helper (void *sema_);

@@ -6,6 +6,10 @@
 #include <stdint.h>
 #include "synch.h"
 
+#ifdef USERPROG
+extern bool thread_prior_aging;
+#endif
+
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -109,6 +113,8 @@ struct thread
     int load_success;
 #endif
    int64_t wake_tick; //깨어나야 할 틱 추가
+   int nice;
+   int recent_cpu;
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
@@ -116,6 +122,9 @@ struct thread
 
 /*prj3에서 추가함*/
 bool is_idle_thread(struct thread* t);
+void insert_in_p_order(struct list* list, struct thread* t);
+void update_rc_la(void);
+void update_priority(void);
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.

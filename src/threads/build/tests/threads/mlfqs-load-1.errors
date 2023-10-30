@@ -1,0 +1,4 @@
+WARNING: Image format was not specified for '/tmp/6EW5BYgLQu.dsk' and probing guessed raw.
+         Automatically detecting the format is dangerous for raw images, write operations on block 0 will be restricted.
+         Specify the 'raw' format explicitly to remove the restrictions.
+qemu-system-i386: terminating on signal 2 from pid 3556395 (/usr/bin/perl)
