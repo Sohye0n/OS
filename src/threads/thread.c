@@ -54,7 +54,9 @@ static long long user_ticks;    /* # of timer ticks in user programs. */
 /* Scheduling. */
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
 static unsigned thread_ticks;   /* # of timer ticks since last yield. */
-
+#ifndef USERPROG
+bool thread_prior_aging;
+#endif
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
@@ -149,9 +151,9 @@ thread_tick (void)
     kernel_ticks++;
 
   /*prj3*/
-  #ifdef USERPROG
-  thread_wake_up();
-  if(thread_prior_aging==true || thread_mlfqs==true) thread_aging(thread_ticks+1);
+  #ifndef USERPROG
+  //thread_wake_up();
+  if(thread_prior_aging==true || thread_mlfqs==true) thread_aging();
   #endif
   /*prj3*/
 
@@ -162,12 +164,13 @@ thread_tick (void)
 }
 
 /*prj3*/
-void thread_aging(int64_t ticks){
+void thread_aging(){
   //struct thread *t=thread_current();
   //t->priority+=1;
-  printf("aging\n");
-  update_rc_la();
-  if(ticks%4==0) update_priority();
+  //여기서는 rc만 업데이트하고 아래 함수는 timer_interrupt에서 호출
+  //thread_current()->recent_cpu=i_add_f(1,thread_current()->recent_cpu);
+  //update_rc_la();
+  //if(ticks%4==0) update_priority();
 }
 /*prj3*/
 
@@ -428,6 +431,7 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
+  if(thread_mlfqs) return;
   int old_priority=thread_current()->priority;
   thread_current ()->priority = new_priority;
   if(old_priority > new_priority) thread_yield();
@@ -444,8 +448,14 @@ thread_get_priority (void)
 void
 thread_set_nice (int nice) 
 {
-  thread_current()->nice=nice;
-  /* Not yet implemented. */
+  int old_priority=thread_current()->priority;
+  struct thread* t=thread_current();
+  t->nice=nice;
+  t->priority = (PRI_MAX*FRACTION - (t->recent_cpu/4)-(t->nice *2)*FRACTION)/FRACTION;
+  //t->priority=f_sub_f(PRI_MAX*F , f_add_f(i_div_f(4 , t->recent_cpu) , i_mul_f(2*F , t->nice)))/F;
+  if(t->priority > PRI_MAX) t->priority=PRI_MAX;
+  else if(t->priority < PRI_MIN) t->priority=PRI_MIN;
+  if(old_priority > t->priority) thread_yield();
 }
 
 /* Returns the current thread's nice value. */
@@ -461,7 +471,7 @@ int
 thread_get_load_avg (void) 
 {
   /* Not yet implemented. */
-  int ret=i_mul_f(100,load_avg)/F;
+  int ret=i_mul_f(100,load_avg)/FRACTION;
   return ret;
 }
 
@@ -470,7 +480,7 @@ int
 thread_get_recent_cpu (void) 
 {
   /* Not yet implemented. */
-  int ret=i_mul_f(100,thread_current()->recent_cpu)/F;
+  int ret=i_mul_f(100,thread_current()->recent_cpu)/FRACTION;
   return ret;
 }
 
@@ -478,12 +488,12 @@ thread_get_recent_cpu (void)
 //매초 부르는게 대체 무슨 의미가 있나...라고 생각했는데 타이머 인터럽트마다 rc 1 증가함.
 //그럼 타이머 인터럽트 내부에서 running 스레드의 rc를 1 증가시킴 -> update_rc_la() 로 하면 됨.
 void update_rc_la(){
-
   //load_avg를 업데이트 한다.
   int ready_threads=list_size(&ready_list);
   if(!is_idle_thread(thread_current())) ready_threads+=1;
-  load_avg=i_div_f(60, i_add_f(ready_threads , i_mul_f(59 , load_avg)));
-
+  //load_avg=i_div_f(60, i_add_f(ready_threads , i_mul_f(59 , load_avg)));
+  //load_avg = (59*load_avg)/60 + (ready_threads*F)/60;
+  load_avg = (59*load_avg)/60 + (ready_threads*FRACTION)/60;
   //이를 토대로 recent_cpu를 업데이트 한다.
   //status에 무관하게 모든 스레드를 업데이트 해준다.
   struct list_elem* start=list_begin(&all_list);
@@ -491,41 +501,38 @@ void update_rc_la(){
   struct list_elem* i=start;
   struct thread* t;
 
-  int mul_nice_add_rc=f_div_f(i_mul_f(2 , load_avg) , i_add_f(1 , i_mul_f(2,load_avg)));
-
-  //idle 스레드 제외하고 rc 업데이트
-  while(1){
+  //int mul_nice_add_rc=f_div_f(i_mul_f(2 , load_avg) , i_add_f(1 , i_mul_f(2,load_avg)));
+  for(i=start; i!=end; i=list_next(i)){
     t=list_entry(i,struct thread,allelem);
-    if(!is_idle_thread(t)) t->recent_cpu=i_add_f(t->nice , f_mul_f(t->recent_cpu , mul_nice_add_rc))/F;
-    if(i==end) break;
-    i=list_next(i);
+    if(!is_idle_thread(t)){
+      t->recent_cpu = ((int64_t)((int64_t)2*load_avg)*FRACTION / (2*load_avg+FRACTION))*t->recent_cpu / FRACTION+t->nice *FRACTION;
+      //t->recent_cpu=i_add_f(t->nice , f_mul_f(t->recent_cpu , mul_nice_add_rc))/F;
+    }
   }
-
 }
 
 //이건 4초마다 업데이트.
 //RR의 time quantum이 4인 듯?
 void update_priority(){
-
   //status에 무관하게 모든 스레드를 업데이트 해준다.
-  struct list_elem* start=list_begin(&all_list);
-  struct list_elem* end=list_end(&all_list);
-  struct list_elem* i=start;
-  struct thread* t;
+    struct list_elem* start=list_begin(&all_list);
+    struct list_elem* end=list_end(&all_list);
+    struct list_elem* i;
+    struct thread* t;
 
-  //idle 스레드 제외하고 priority 업데이트
-  while(1){
-    t=list_entry(i,struct thread,allelem);
-    if(!is_idle_thread(t)) t->priority=f_sub_f(PRI_MAX*F , f_add_f(i_div_f(t->recent_cpu , 4) , i_mul_f(2 , t->nice)))/F;
-    
-    //maximum보다 더 커지면 maximum으로 세팅.
-    if(t->priority > PRI_MAX) t->priority=PRI_MAX;
-    else if(t->priority < PRI_MIN) t->priority=PRI_MIN;
-    
-    if(i==end) break;
-    i=list_next(i);
-  }
+    //idle 스레드 제외하고 priority 업데이트
+    for(i=start; i!=end; i=list_next(i)){
+      t=list_entry(i,struct thread,allelem);
+      if(!is_idle_thread(t)){
+        //t->priority=f_sub_f(PRI_MAX*F , f_add_f(i_div_f(4 , t->recent_cpu) , i_mul_f(2*F , t->nice)))/F;
+        t->priority = (PRI_MAX*FRACTION - (t->recent_cpu/4)-(t->nice *2)*FRACTION)/FRACTION;
+        //maximum보다 더 커지면 maximum으로 세팅.
+        if(t->priority > PRI_MAX) t->priority=PRI_MAX;
+        else if(t->priority < PRI_MIN) t->priority=PRI_MIN;
+      }
+    }
 
+    if (thread_current()->priority < PRI_MAX) intr_yield_on_return();
 }
 
 
@@ -621,6 +628,12 @@ init_thread (struct thread *t, const char *name, int priority)
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
   t->wake_tick=0;
+    /*prj3에서 추가한 내용*/
+  if(!is_idle_thread(t)){
+    t->nice=running_thread()->nice; //부모 스레드의 nice 값으로
+    t->recent_cpu=running_thread()->recent_cpu; //부모 스레드의 recent_cpu 값으로
+    //printf("new thread created! id : %d | nice : %d | rc : %d\n",t->tid, t->nice, t->recent_cpu);
+  }
 #ifdef USERPROG
   /*prj1에서 추가한 내용*/
   list_init(&t->child_list); //지금 생성되는 프로세스의 자식프로세스 리스트 초기화
@@ -637,11 +650,6 @@ init_thread (struct thread *t, const char *name, int priority)
   t->load_success=1;
   /*prj2에서 추가한 내용*/
 
-  /*prj3에서 추가한 내용*/
-  if(!is_idle_thread(t)){
-    t->nice=running_thread()->nice; //부모 스레드의 nice 값으로
-    t->recent_cpu=running_thread()->recent_cpu; //부모 스레드의 recent_cpu 값으로
-  }
   /*prj3에서 추가한 내용*/
 #endif
 }

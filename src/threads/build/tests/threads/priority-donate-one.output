@@ -1,4 +1,4 @@
-qemu-system-i386 -device isa-debug-exit -hda /tmp/BoN_hu98rd.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -hda /tmp/03qM1D_KPn.dsk -m 4 -net none -nographic -monitor null
 c[?7l[2J[0mSeaBIOS (version 1.13.0-1ubuntu1.1)
 Booting from Hard Disk...
 PPiiLLoo  hhddaa1
@@ -8,7 +8,7 @@ Kernel command line: -q run priority-donate-one
 Pintos booting with 3,968 kB RAM...
 367 pages available in kernel pool.
 367 pages available in user pool.
-Calibrating timer...  373,145,600 loops/s.
+Calibrating timer...  381,747,200 loops/s.
 Boot complete.
 Executing 'priority-donate-one':
 (priority-donate-one) begin
@@ -22,8 +22,8 @@ Executing 'priority-donate-one':
 (priority-donate-one) This should be the last line before finishing this test.
 (priority-donate-one) end
 Execution of 'priority-donate-one' complete.
-Timer: 27 ticks
-Thread: 0 idle ticks, 27 kernel ticks, 0 user ticks
-Console: 901 characters output
+Timer: 28 ticks
+Thread: 0 idle ticks, 28 kernel ticks, 0 user ticks
+CoConsole: 901 characters output
 Keyboard: 0 keys pressed
 Powering off...

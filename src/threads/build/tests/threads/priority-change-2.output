@@ -1,0 +1,26 @@
+qemu-system-i386 -device isa-debug-exit -hda /tmp/DfyPYE94jD.dsk -m 4 -net none -nographic -monitor null
+c[?7l[2J[0mSeaBIOS (version 1.13.0-1ubuntu1.1)
+Booting from Hard Disk...
+PPiiLLoo  hhddaa1
+1
+LLooaaddiinngg.......................
+Kernel command line: -q run priority-change-2
+Pintos booting with 3,968 kB RAM...
+367 pages available in kernel pool.
+367 pages available in user pool.
+Calibrating timer...  373,145,600 loops/s.
+BBoot complete.
+Executing 'priority-change-2':
+(priority-change-2) begin
+(priority-change-2) Creating a low-priority thread 2.
+(priority-change-2) Thread 2 should have just highered its priority.
+(priority-change-2) Thread 2 now highering priority.
+(priority-change-2) Thread 2 exiting.
+(priority-change-2) Thread 2 should have just exited.
+(priority-change-2) end
+Execution of 'priority-change-2' complete.
+Timer: 26 ticks
+Thread: 0 idle ticks, 27 kernel ticks, 0 user ticks
+Console: 670 characters output
+Keyboard: 0 keys pressed
+Powering off...

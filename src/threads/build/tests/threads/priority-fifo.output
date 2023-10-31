@@ -1,4 +1,4 @@
-qemu-system-i386 -device isa-debug-exit -hda /tmp/FGsHi_0Run.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -hda /tmp/jw_h9y_bjX.dsk -m 4 -net none -nographic -monitor null
 c[?7l[2J[0mSeaBIOS (version 1.13.0-1ubuntu1.1)
 Booting from Hard Disk...
 PPiiLLoo  hhddaa1
@@ -8,7 +8,7 @@ Kernel command line: -q run priority-fifo
 Pintos booting with 3,968 kB RAM...
 367 pages available in kernel pool.
 367 pages available in user pool.
-Calibrating timer...  381,747,200 loops/s.
+Calibrating timer...  384,614,400 loops/s.
 Boot complete.
 Executing 'priority-fifo':
 (priority-fifo) begin
@@ -32,8 +32,8 @@ Executing 'priority-fifo':
 (priority-fifo) iteration: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
 (priority-fifo) end
 Execution of 'priority-fifo' complete.
-Timer: 30 ticks
-Thread: 0 idle ticks, 30 kernel ticks, 0 user ticks
+Timer: 29 ticks
+Thread: 0 idle ticks, 29 kernel ticks, 0 user ticks
 Console: 1557 characters output
 Keyboard: 0 keys pressed
 Powering off...

@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include "synch.h"
 
-#ifdef USERPROG
+#ifndef USERPROG
 extern bool thread_prior_aging;
 #endif
 

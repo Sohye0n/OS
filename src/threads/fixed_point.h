@@ -1,4 +1,9 @@
+#define FRACTION (1<<14)
 #define F (1<<14)
+
+#ifndef INTH
+include ""
+#endif
 
 int i_mul_f(int i, int f);
 int f_mul_f(int f1, int f2);

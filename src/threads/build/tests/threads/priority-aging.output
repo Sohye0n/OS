@@ -1,0 +1,26 @@
+qemu-system-i386 -device isa-debug-exit -hda /tmp/bst3Zjp5eN.dsk -m 4 -net none -nographic -monitor null
+c[?7l[2J[0mSeaBIOS (version 1.13.0-1ubuntu1.1)
+Booting from Hard Disk...
+PPiiLLoo  hhddaa1
+1
+LLooaaddiinngg.......................
+Kernel command line: -q -aging run priority-aging
+Pintos booting with 3,968 kB RAM...
+367 pages available in kernel pool.
+367 pages available in user pool.
+Calibrating timer...  382,156,800 loops/s.
+Boot complete.
+Executing 'priority-aging':
+(priority-aging) begin
+(priority-aging) Creating a default-priority thread 2.
+(priority-aging) Main thread change its priority and have just lowered thread 2's priority.
+(priority-aging) From now, main thread can't get CPU without aging.
+(priority-aging) But main thread exiti(priority-aging) But main thread exiting.
+(priority-aging) Success!
+(priority-aging) end
+Execution of 'priority-aging' complete.
+Timer: 32 ticks
+Thread: 0 idle ticks, 32 kernel ticks, 0 user ticks
+Console: 677 characters output
+Keyboard: 0 keys pressed
+Powering off...

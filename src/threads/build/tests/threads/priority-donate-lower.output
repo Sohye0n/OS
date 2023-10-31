@@ -1,4 +1,4 @@
-qemu-system-i386 -device isa-debug-exit -hda /tmp/cIkovA44PJ.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -hda /tmp/McbDNd_X4b.dsk -m 4 -net none -nographic -monitor null
 c[?7l[2J[0mSeaBIOS (version 1.13.0-1ubuntu1.1)
 Booting from Hard Disk...
 PPiiLLoo  hhddaa1
@@ -8,10 +8,10 @@ Kernel command line: -q run priority-donate-lower
 Pintos booting with 3,968 kB RAM...
 367 pages available in kernel pool.
 367 pages available in user pool.
-Calibrating timer...  382,976,000 loops/s.
+Calibrating timer...  385,433,600 loops/s.
 Boot complete.
 Executing 'priority-donate-lower':
-((priority-donate-lower) begin
+(priority-donate-lower) begin
 (priority-donate-lower) Main thread should have priority 41.  Actual priority: 31.
 (priority-donate-lower) Lowering base priority...
 (priority-donate-lower) Main thread should have priority 41.  Actual priority: 21.

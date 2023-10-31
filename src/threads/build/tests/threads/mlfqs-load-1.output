@@ -1,4 +1,4 @@
-qemu-system-i386 -device isa-debug-exit -hda /tmp/6EW5BYgLQu.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -hda /tmp/5nUHljwiBh.dsk -m 4 -net none -nographic -monitor null
 c[?7l[2J[0mSeaBIOS (version 1.13.0-1ubuntu1.1)
 Booting from Hard Disk...
 PPiiLLoo  hhddaa1
@@ -8,31 +8,19 @@ Kernel command line: -q -mlfqs run mlfqs-load-1
 Pintos booting with 3,968 kB RAM...
 367 pages available in kernel pool.
 367 pages available in user pool.
-Calibrating timer...  378,880,000 loops/s.
+Calibrating timer...  360,038,400 loops/s.
 Boot complete.
 Executing 'mlfqs-load-1':
 (mlfqs-load-1) begin
 (mlfqs-load-1) spinning for up to 45 seconds, please wait...
-(mlfqs-load-1) FAIL: load average stayed below 0.5 for more than 45 seconds
-Kernel PANIC at ../../tests/threads/tests.c:93 in fail(): test failed
-Call stack: 0xc0029f56 0Unexpected interrupt 0x0e (#PF Page-Fault Exception)
-Unexpected interrupt 0x0e (#PF Page-Fault Exception)
-Unexpected interrupt 0x0e (#PF Page-Fault Exception)
-Unexpected interrupt 0x0e (#PF Page-Fault Exception)
-Unexpected interrupt 0x0e (#PF Page-Fault Exception)
-Unexpected interrupt 0x0e (#PF Page-Fault Exception)
-Unexpected interrupt 0x0e (#PF Page-Fault Exception)
-Unexpected interrupt 0x0e (#PF Page-Fault Exception)
-Unexpected interrupt 0x0e (#PF Page-Fault Exception)
-Unexpected interrupt 0x0e (#PF Page-Fault Exception)
-Unexpected interrupt 0x0e (#PF Page-Fault Exception)
-Unexpected interrupt 0x0e (#PF Page-Fault Exception)
-Unexpected interrupt 0x0e (#PF Page-Fault Exception)
-Unexpected interrupt 0x0e (#PF Page-Fault Exception)
-Unexpected interrupt 0x0e (#PF Page-Fault Exception)
-Unexpected interrupt 0x0e (#PF Page-Fault Exception)
-Unexpected interrupt 0x0e (#PF Page-Fault Exception)
-Unexpected interrupt 0x0e (#PF Page-Fault Exception)
-Unexpected interrupt 0x0e (#PF Page-Fault Exception)
-Unexpected interrupt 0x0e (#PF Page-Fault Exception)
-Unexpected interrupt 0x0e (#PF Page-Fault ESimulation terminated due to kernel panic.
+(mlfqs-load-1) load average rose to 0.5 after 42 seconds
+(mlfqs-load-1) sleeping for another 10 seconds, please wait...
+(mlfqs-load-1) load average fell back below 0.5 (to 0.45)
+(mlfqs-load-1) PASS
+(mlfqs-load-1) end
+ExecutionExecution of 'mlfqs-load-1' complete.
+Timer: 5300 ticks
+Thread: 1000 idle ticks, 4300 kernel ticks, 0 user ticks
+Console: 650 characters output
+Keyboard: 0 keys pressed
+Powering off...
