@@ -1,4 +1,4 @@
-qemu-system-i386 -device isa-debug-exit -hda /tmp/UIonHw3Kvf.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -hda /tmp/cwdiU_CSxt.dsk -m 4 -net none -nographic -monitor null
 c[?7l[2J[0mSeaBIOS (version 1.13.0-1ubuntu1.1)
 Booting from Hard Disk...
 PPiiLLoo  hhddaa1
@@ -8,10 +8,10 @@ Kernel command line: -q run priority-preempt
 Pintos booting with 3,968 kB RAM...
 367 pages available in kernel pool.
 367 pages available in user pool.
-Calibrating timer...  366,592,000 loops/s.
+Calibrating timer...  382,566,400 loops/s.
 Boot complete.
 Executing 'priority-preempt':
-(pri(priority-preempt) begin
+(priority-preempt) begin
 (priority-preempt) Thread high-priority iteration 0
 (priority-preempt) Thread high-priority iteration 1
 (priority-preempt) Thread high-priority iteration 2
@@ -21,8 +21,8 @@ Executing 'priority-preempt':
 (priority-preempt) The high-priority thread should have already completed.
 (priority-preempt) end
 Execution of 'priority-preempt' complete.
-Timer: 25 ticks
-Thread: 0 idle ticks, 25 kernel ticks, 0 user ticks
+Timer: 27 ticks
+Thread: 0 idle ticks, 27 kernel ticks, 0 user ticks
 Console: 778 characters output
 Keyboard: 0 keys pressed
-Powering off...
+PoweriPowering off...

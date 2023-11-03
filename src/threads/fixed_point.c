@@ -4,11 +4,11 @@ int i_mul_f(int i, int f){
     return i*f;
 }
 int f_mul_f(int f1, int f2){
-    long ret=f1*f2/F;
+    int64_t ret=(int64_t)f1*(int64_t)f2/F;
     return (int)ret;
 }
 int f_div_f(int f1, int f2){
-    long ret=(f1/f2)*F;
+    int64_t ret=((int64_t)f1/(int64_t)f2)*F;
     return (int)ret;
 }
 int i_div_f(int i, int f){

@@ -1,8 +1,8 @@
 #define FRACTION (1<<14)
 #define F (1<<14)
 
-#ifndef INTH
-include ""
+#ifndef __LIB_STDINT_H
+#include "stdint.h"
 #endif
 
 int i_mul_f(int i, int f);

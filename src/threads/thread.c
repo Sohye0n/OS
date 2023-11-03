@@ -451,8 +451,8 @@ thread_set_nice (int nice)
   int old_priority=thread_current()->priority;
   struct thread* t=thread_current();
   t->nice=nice;
-  t->priority = (PRI_MAX*FRACTION - (t->recent_cpu/4)-(t->nice *2)*FRACTION)/FRACTION;
-  //t->priority=f_sub_f(PRI_MAX*F , f_add_f(i_div_f(4 , t->recent_cpu) , i_mul_f(2*F , t->nice)))/F;
+  //t->priority = (PRI_MAX*FRACTION - (t->recent_cpu/4)-(t->nice *2)*FRACTION)/FRACTION;
+  t->priority=f_sub_f(PRI_MAX*F , f_add_f(i_div_f(4 , t->recent_cpu) , i_mul_f(2*F , t->nice)))/F;
   if(t->priority > PRI_MAX) t->priority=PRI_MAX;
   else if(t->priority < PRI_MIN) t->priority=PRI_MIN;
   if(old_priority > t->priority) thread_yield();
@@ -471,7 +471,7 @@ int
 thread_get_load_avg (void) 
 {
   /* Not yet implemented. */
-  int ret=i_mul_f(100,load_avg)/FRACTION;
+  int ret=i_mul_f(100,load_avg)/F;
   return ret;
 }
 
@@ -480,7 +480,7 @@ int
 thread_get_recent_cpu (void) 
 {
   /* Not yet implemented. */
-  int ret=i_mul_f(100,thread_current()->recent_cpu)/FRACTION;
+  int ret=i_mul_f(100,thread_current()->recent_cpu)/F;
   return ret;
 }
 
@@ -491,9 +491,7 @@ void update_rc_la(){
   //load_avg를 업데이트 한다.
   int ready_threads=list_size(&ready_list);
   if(!is_idle_thread(thread_current())) ready_threads+=1;
-  //load_avg=i_div_f(60, i_add_f(ready_threads , i_mul_f(59 , load_avg)));
-  //load_avg = (59*load_avg)/60 + (ready_threads*F)/60;
-  load_avg = (59*load_avg)/60 + (ready_threads*FRACTION)/60;
+  load_avg=i_div_f(60, i_add_f(ready_threads , i_mul_f(59 , load_avg)));
   //이를 토대로 recent_cpu를 업데이트 한다.
   //status에 무관하게 모든 스레드를 업데이트 해준다.
   struct list_elem* start=list_begin(&all_list);
@@ -502,11 +500,14 @@ void update_rc_la(){
   struct thread* t;
 
   //int mul_nice_add_rc=f_div_f(i_mul_f(2 , load_avg) , i_add_f(1 , i_mul_f(2,load_avg)));
+  //int64_t mul_nice_add_rc=((int64_t)2*load_avg*F/((int64_t)2*load_avg+F));
+  //f_div_f(i_mul_f(2 , load_avg) , i_add_f(1 , i_mul_f(2,load_avg)));
   for(i=start; i!=end; i=list_next(i)){
     t=list_entry(i,struct thread,allelem);
     if(!is_idle_thread(t)){
       t->recent_cpu = ((int64_t)((int64_t)2*load_avg)*FRACTION / (2*load_avg+FRACTION))*t->recent_cpu / FRACTION+t->nice *FRACTION;
-      //t->recent_cpu=i_add_f(t->nice , f_mul_f(t->recent_cpu , mul_nice_add_rc))/F;
+      //t->recent_cpu=f_mul_f(t->recent_cpu,mul_nice_add_rc);
+      //t->recent_cpu=i_add_f(t->nice , t->recent_cpu);
     }
   }
 }
@@ -524,15 +525,13 @@ void update_priority(){
     for(i=start; i!=end; i=list_next(i)){
       t=list_entry(i,struct thread,allelem);
       if(!is_idle_thread(t)){
-        //t->priority=f_sub_f(PRI_MAX*F , f_add_f(i_div_f(4 , t->recent_cpu) , i_mul_f(2*F , t->nice)))/F;
-        t->priority = (PRI_MAX*FRACTION - (t->recent_cpu/4)-(t->nice *2)*FRACTION)/FRACTION;
+        t->priority=f_sub_f(PRI_MAX*F , f_add_f(i_div_f(4 , t->recent_cpu) , i_mul_f(2*F , t->nice)))/F;
+        //t->priority = (PRI_MAX*FRACTION - (t->recent_cpu/4)-(t->nice *2)*FRACTION)/FRACTION;
         //maximum보다 더 커지면 maximum으로 세팅.
         if(t->priority > PRI_MAX) t->priority=PRI_MAX;
         else if(t->priority < PRI_MIN) t->priority=PRI_MIN;
       }
     }
-
-    if (thread_current()->priority < PRI_MAX) intr_yield_on_return();
 }
 
 
