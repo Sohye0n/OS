@@ -1,4 +1,3 @@
-#define FRACTION (1<<14)
 #define F (1<<14)
 
 #ifndef __LIB_STDINT_H

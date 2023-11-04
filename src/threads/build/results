@@ -12,9 +12,9 @@ FAIL tests/threads/priority-donate-multiple2
 FAIL tests/threads/priority-donate-nest
 FAIL tests/threads/priority-donate-sema
 FAIL tests/threads/priority-donate-lower
-FAIL tests/threads/priority-fifo
+pass tests/threads/priority-fifo
 pass tests/threads/priority-preempt
-FAIL tests/threads/priority-sema
+pass tests/threads/priority-sema
 pass tests/threads/priority-aging
 FAIL tests/threads/priority-condvar
 FAIL tests/threads/priority-donate-chain
@@ -26,4 +26,4 @@ pass tests/threads/mlfqs-fair-2
 pass tests/threads/mlfqs-fair-20
 pass tests/threads/mlfqs-nice-2
 pass tests/threads/mlfqs-nice-10
-FAIL tests/threads/mlfqs-block
+pass tests/threads/mlfqs-block

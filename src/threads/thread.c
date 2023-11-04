@@ -165,6 +165,7 @@ thread_tick (void)
 
 /*prj3*/
 void thread_aging(){
+  thread_current()->recent_cpu=i_add_f(1,thread_current()->recent_cpu);
   //struct thread *t=thread_current();
   //t->priority+=1;
   //여기서는 rc만 업데이트하고 아래 함수는 timer_interrupt에서 호출
@@ -499,15 +500,12 @@ void update_rc_la(){
   struct list_elem* i=start;
   struct thread* t;
 
-  //int mul_nice_add_rc=f_div_f(i_mul_f(2 , load_avg) , i_add_f(1 , i_mul_f(2,load_avg)));
-  //int64_t mul_nice_add_rc=((int64_t)2*load_avg*F/((int64_t)2*load_avg+F));
-  //f_div_f(i_mul_f(2 , load_avg) , i_add_f(1 , i_mul_f(2,load_avg)));
+  int64_t mul_nice_add_rc=((int64_t)(2*load_avg)*F/(2*load_avg+F));
   for(i=start; i!=end; i=list_next(i)){
     t=list_entry(i,struct thread,allelem);
     if(!is_idle_thread(t)){
-      t->recent_cpu = ((int64_t)((int64_t)2*load_avg)*FRACTION / (2*load_avg+FRACTION))*t->recent_cpu / FRACTION+t->nice *FRACTION;
-      //t->recent_cpu=f_mul_f(t->recent_cpu,mul_nice_add_rc);
-      //t->recent_cpu=i_add_f(t->nice , t->recent_cpu);
+      int64_t temp=t->recent_cpu*mul_nice_add_rc/F+t->nice*F;
+      t->recent_cpu=temp;
     }
   }
 }

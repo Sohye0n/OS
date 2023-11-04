@@ -216,12 +216,13 @@ timer_interrupt (struct intr_frame *args UNUSED)
       if(i==end || i==NULL) break;
     }
   }
+
+  thread_tick ();
   if(thread_prior_aging||thread_mlfqs){
-    thread_current()->recent_cpu=i_add_f(1,thread_current()->recent_cpu);
+    //thread_current()->recent_cpu=i_add_f(1,thread_current()->recent_cpu);
     if(timer_ticks()%TIMER_FREQ==0) update_rc_la();
     if(timer_ticks()%4==0) update_priority();
   }
-  thread_tick ();
 
 }
 

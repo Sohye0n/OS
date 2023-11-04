@@ -1,4 +1,4 @@
-qemu-system-i386 -device isa-debug-exit -hda /tmp/Uz4mmaenFN.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -hda /tmp/xd392or3je.dsk -m 4 -net none -nographic -monitor null
 c[?7l[2J[0mSeaBIOS (version 1.13.0-1ubuntu1.1)
 Booting from Hard Disk...
 PPiiLLoo  hhddaa1
@@ -8,7 +8,7 @@ Kernel command line: -q run priority-change-2
 Pintos booting with 3,968 kB RAM...
 367 pages available in kernel pool.
 367 pages available in user pool.
-Calibrating timer...  385,024,000 loops/s.
+Calibrating timer...  386,662,400 loops/s.
 Boot complete.
 Executing 'priority-change-2':
 (priority-change-2) begin
@@ -20,7 +20,7 @@ Executing 'priority-change-2':
 (priority-change-2) end
 Execution of 'priority-change-2' complete.
 Timer: 27 ticks
-Thread: 0 idle ticks, 27 kernel ticks, 0 user ticks
+Thread: 0 idle ticks, 28 kernel ticks, 0 user ticks
 Console: 670 characters output
 Keyboard: 0 keys pressed
 Powering off...
