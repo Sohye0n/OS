@@ -1,4 +1,4 @@
-qemu-system-i386 -device isa-debug-exit -hda /tmp/tiz3HZL1fs.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -hda /tmp/m2LVr1mrIM.dsk -m 4 -net none -nographic -monitor null
 c[?7l[2J[0mSeaBIOS (version 1.13.0-1ubuntu1.1)
 Booting from Hard Disk...
 PPiiLLoo  hhddaa1
@@ -8,27 +8,27 @@ Kernel command line: -q -mlfqs run mlfqs-nice-10
 Pintos booting with 3,968 kB RAM...
 367 pages available in kernel pool.
 367 pages available in user pool.
-Calibrating timer...  386,662,400 loops/s.
+Calibrating timer...  419,430,400 loops/s.
 Boot complete.
 Executing 'mlfqs-nice-10':
 (mlfqs-nice-10) begin
 (mlfqs-nice-10) Starting 10 threads...
 (mlfqs-nice-10) Starting threads took 0 ticks.
 (mlfqs-nice-10) Sleeping 40 seconds to let threads run, please wait...
-(mlfqs-nice-10) Thread 0 re(mlfqs-nice-10) Thread 0 received 668 ticks.
-(mlfqs-nice-10) Thread 1 received 597 ticks.
-(mlfqs-nice-10) Thread 2 received 489 ticks.
-(mlfqs-nice-10) Thread 3 received 408 ticks.
-(mlfqs-nice-10) Thread 4 received 317 ticks.
-(mlfqs-nice-10) Thread 5 received 229 ticks.
-(mlfqs-nice-10) Thread 6 received 153 ticks.
+(mlfqs-nice-10) Thread 0 received 684 ticks.
+(mlfqs-nice-10) Thread 1 received 592 ticks.
+(mlfqs-nice-10) Thread 2 received 493 ticks.
+(mlfqs-nice-10) Thread 3 received 400 ticks.
+(mlfqs-nice-10) Thread 4 received 309 ticks.
+(mlfqs-nice-10) Thread 5 received 225 ticks.
+(mlfqs-nice-10) Thread 6 received 152 ticks.
 (mlfqs-nice-10) Thread 7 received 93 ticks.
 (mlfqs-nice-10) Thread 8 received 44 ticks.
-(mlfqs-nice-10) Thread 9 received 9 ticks.
+(mlfqs-nice-10) Thread 9 received 12 ticks.
 (mlfqs-nice-10) end
 Execution of 'mlfqs-nice-10' complete.
-Timer: 4028 ticks
-Thread: 1000 idle ticks, 3028 kernel ticks, 0 user ticks
-Console: 999 characters output
+Timer: 4033 ticks
+Thread: 1000 idle ticks, 3033 kernel ticks, 0 user ticks
+Console: 1000 characters output
 Keyboard: 0 keys pressed
 Powering off...

@@ -1,4 +1,4 @@
-qemu-system-i386 -device isa-debug-exit -hda /tmp/VcG4b05ikD.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -hda /tmp/UXtnlG7JZI.dsk -m 4 -net none -nographic -monitor null
 c[?7l[2J[0mSeaBIOS (version 1.13.0-1ubuntu1.1)
 Booting from Hard Disk...
 PPiiLLoo  hhddaa1
@@ -8,7 +8,7 @@ Kernel command line: -q -aging run priority-aging
 Pintos booting with 3,968 kB RAM...
 367 pages available in kernel pool.
 367 pages available in user pool.
-Calibrating timer...  387,072,000 loops/s.
+Calibrating timer...  398,131,200 loops/s.
 Boot complete.
 Executing 'priority-aging':
 (priority-aging) begin
@@ -19,8 +19,8 @@ Executing 'priority-aging':
 (priority-aging) Success!
 (priority-aging) end
 Execution of 'priority-aging' complete.
-Timer: 35 ticks
-Thread: 0 idle ticks, 35 kernel ticks, 0 user ticks
+Timer: 34 ticks
+Thread: 0 idle ticks, 34 kernel ticks, 0 user ticks
 Console: 677 characters output
 Keyboard: 0 keys pressed
 Powering off...

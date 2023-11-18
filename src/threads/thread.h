@@ -116,6 +116,10 @@ struct thread
    int nice;
    int recent_cpu;
 
+   /*prj4*/
+   struct hash vm; //가상주소를 저장할 해시테이블
+   /*prj4*/
+
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };

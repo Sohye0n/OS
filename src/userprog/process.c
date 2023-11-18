@@ -184,6 +184,15 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
+  /*prj4*/
+  //create hashtable for vm
+  
+
+  //initialize hashtable for vm
+
+
+  /*prj4*/
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;

@@ -124,7 +124,7 @@ thread_start (void)
   struct semaphore idle_started;
   sema_init (&idle_started, 0);
   /*prj3에서 MIN에서 DEFAULT로 수정함*/
-  thread_create ("idle", PRI_DEFAULT, idle, &idle_started);
+  thread_create ("idle", PRI_MIN, idle, &idle_started);
 
   /* Start preemptive thread scheduling. */
   intr_enable ();
@@ -452,7 +452,6 @@ thread_set_nice (int nice)
   int old_priority=thread_current()->priority;
   struct thread* t=thread_current();
   t->nice=nice;
-  //t->priority = (PRI_MAX*FRACTION - (t->recent_cpu/4)-(t->nice *2)*FRACTION)/FRACTION;
   t->priority=f_sub_f(PRI_MAX*F , f_add_f(i_div_f(4 , t->recent_cpu) , i_mul_f(2*F , t->nice)))/F;
   if(t->priority > PRI_MAX) t->priority=PRI_MAX;
   else if(t->priority < PRI_MIN) t->priority=PRI_MIN;
@@ -524,7 +523,6 @@ void update_priority(){
       t=list_entry(i,struct thread,allelem);
       if(!is_idle_thread(t)){
         t->priority=f_sub_f(PRI_MAX*F , f_add_f(i_div_f(4 , t->recent_cpu) , i_mul_f(2*F , t->nice)))/F;
-        //t->priority = (PRI_MAX*FRACTION - (t->recent_cpu/4)-(t->nice *2)*FRACTION)/FRACTION;
         //maximum보다 더 커지면 maximum으로 세팅.
         if(t->priority > PRI_MAX) t->priority=PRI_MAX;
         else if(t->priority < PRI_MIN) t->priority=PRI_MIN;
