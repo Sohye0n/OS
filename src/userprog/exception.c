@@ -6,6 +6,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "userprog/syscall.h"
+#include "vm/page.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -150,13 +151,47 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  /*내가 추가함... 테케 bad-sp 땜에. 커널이 유저 영역을 참조하려고 하면 막아야 함. 근데 커널이 왜 참조하지....*/
-  if (!user) exit(-1);
-  if (is_kernel_vaddr(fault_addr)) exit(-1);
-  if (not_present) {
-    //printf("panic\n");
-    exit(-1);
-  }
+//   /*내가 추가함... 테케 bad-sp 땜에. 커널이 유저 영역을 참조하려고 하면 막아야 함. 근데 커널이 왜 참조하지....*/
+//     if (!user) exit(-1);
+//     if (is_kernel_vaddr(fault_addr)) exit(-1);
+//     if (not_present) {
+//     //printf("panic\n");
+//     exit(-1);
+//     }
+
+   //페이지폴트에 대한 처리를 해줘야 함
+   //말 그대로 물리메모리에 올라와있지 않은 메모리를 참조했을 때
+   // if(not_present){
+   //    //해시테이블을 뒤져서 해당 vaddr을 가진 vm_entry를 가져와서 이걸 물리메모리에 올려야함.
+
+   //    //1. fault가 발생한 vaddr을 가진 vm_entry를 가져온다
+   //    struct vm_entry* vme=search(fault_addr);
+   //    //vme가 존재한다 -> 물리메모리에 load해주면 됨
+   //    if(vme){
+   //       //2. 얘를 물리 메모리에 올려야하므로 is_load 변수를 true로 해준다.
+   //       vme->is_loaded=true;
+   //    }
+   //    //vme가 NULL이다 -> 공간이 모자라다. 따라서 스택을 더 키워준다.
+   //    else{
+   //       //근데 커널이 유저 영역을 침범한다면?
+   //       if(!user) exit(-1);
+   //       //esp가 커널 영역을 침범한다면?
+   //       if(is_kernel_vaddr(f->esp)) exit(-1);
+   //       //유저영역 끝 4개페이지는 이미 할당됨.
+   //       if(f->esp<=PHYS_BASE-4*4*1024) exit(-1);
+   //       //요청 영역이 커널 영역이라면?
+   //       //vaddr 자체는 유저 영역이어도 이걸 포함하는 페이지는 커널 영역일 수도 있음.
+   //       void* page_where_faddr_in;
+   //       page_where_faddr_in=pg_round_down(fault_addr);
+   //       if(is_kernel_vaddr(page_where_faddr_in) || is_kernel_vaddr(fault_addr)) exit(-1);
+
+   //       //나머지 경우는 유저가 유저 영역을 사용하는 것이므로 스택을 더 확장해주면 된다.
+   //       bool stack_grow=stack_growth(fault_addr);
+   //       //만약 스택 확장에 실패했다면
+   //       if(!stack_grow) exit(-1);
+   //    }
+   // }
+
 
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to

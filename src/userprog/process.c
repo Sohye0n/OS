@@ -17,6 +17,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "vm/page.h"
 
 
 static thread_func start_process NO_RETURN;
@@ -184,20 +185,17 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
-  /*prj4*/
-  //create hashtable for vm
-  
-
-  //initialize hashtable for vm
-
-
-  /*prj4*/
-
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
+
+  /*prj4*/
+  //load 하기 전에 해시테이블 생성
+  vm_init(&thread_current()->vm_hash);
+  /*prj4*/
+
   success = load (file_name, &if_.eip, &if_.esp); //입력으로 받은 프로그램이 실행 가능한지 체크 후 스택을 할당해줌.
   
   /* If load failed, quit. */
@@ -290,6 +288,10 @@ process_exit (void)
       cur->pagedir = NULL;
       pagedir_activate (NULL);
       pagedir_destroy (pd);
+      /*prj4*/
+      //프로세스의 vm 해시테이블과 그 안의 vm_entry들을 다 free 해줘야 한다.
+      vm_delete(&thread_current()->vm_hash);
+      /*prj4*/
       //printf("cur thread : %s, sema up!\n",cur->name); 
     }
     sema_up(&cur->state); 
@@ -380,6 +382,21 @@ static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
                           bool writable);
+
+/*prj4*/
+bool handle_mm_fault(void* vaddr){
+  return true;
+  //create an empty frame for physical memory
+  struct page *frame=palloc_get_page(PAL_USER);
+  
+  //if created
+  if(frame){
+    //load physical memory and map
+    return true;
+  }
+  else return false;
+}
+/*prj4*/
 
 /* Loads an ELF executable from FILE_NAME into the current thread.
    Stores the executable's entry point into *EIP
@@ -527,7 +544,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   //null문자부터 먼저 집어넣는다.
   *esp=*esp-4; 
   **(uint32_t **)esp=0;
-  //printf("addresss : %p\n",*esp);
+  printf("addresss : %p\n",*esp);
 
   //4개의 명령어의 주소값을 집어넣는다.
   for(int i=cmd_num-1; i>=0; i--){
@@ -667,6 +684,20 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
           return false; 
         }
 
+      //다이렉트로 물리페이지와 매핑하는게 아니라 vme와 매핑한다.
+      //make vm_entry
+      struct vm_entry* vm_entry=malloc(sizeof(vm_entry));
+      vm_entry->type=BIN;
+      vm_entry->vaddr=upage;
+      vm_entry->writable=writable;
+      vm_entry->is_loaded=false; //아직 물리 메모리에 올라가진 않았으니
+      vm_entry->offset=ofs;
+      vm_entry->read_bytes=page_read_bytes;
+      vm_entry->zero_bytes=page_zero_bytes;
+
+      //put hash_elem in the hashtable
+      hash_insert(&thread_current()->vm_hash,&vm_entry->hash_elem);
+
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
@@ -692,6 +723,16 @@ setup_stack (void **esp)
       else
         palloc_free_page (kpage);
     }
+
+    //이 스택(PCB)에 대한 vm entry를 생성함.
+    struct vm_entry* vm_entry=malloc(sizeof(vm_entry));
+    vm_entry->type=0; //일단 모르니까 냅두기
+    vm_entry->vaddr=(uint8_t *)PHYS_BASE-PGSIZE;
+    vm_entry->writable=true; //스택에 쌓임 = 수정 가능함
+    vm_entry->is_loaded=true; //스택에 쌓임 = 메모리에 올라옴
+
+    //put hash_elem in the hashtable
+    hash_insert(&thread_current()->vm_hash,&vm_entry->hash_elem);
   return success;
 }
 
@@ -714,3 +755,39 @@ install_page (void *upage, void *kpage, bool writable)
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
+
+/*prj4*/
+bool stack_growth(void* vaddr){
+  //palloc_get_page로 페이지를 받는다. 이 페이지는 물리 메모리와 매핑 o.
+  //유저 메모리 풀에 할당해야 하므로
+  void* new_page=palloc_get_page(PAL_USER);
+  //유저 메모리 풀이 다 찼다면? -> swap 해와야함. 지금은 일단 어쩔수없지
+  if(new_page==NULL) return false;
+
+  //유저 메모리 풀에 공간이 있다면? -> 이 new_page를 리턴해야.
+  struct vm_entry* vme=malloc(sizeof(struct vm_entry));
+  vme->vaddr=pg_round_down(vaddr);
+  //vme->type=VM_SWAP; <<잘 모르니까 일단 패스
+  //물리 메모리에 올라왔으니
+  vme->is_loaded=true;
+  //왜인진 모르겠으나..? 아마 유저 메모리 풀 영역이라 그런 듯.
+  vme->writable=true;
+  {
+    //이 vme를 프로세스의 해시테이블에 넣어준다.
+    bool flag_insert_vme=vm_insert(&thread_current()->vm_hash,vme);
+    if(!flag_insert_vme){
+      printf("failed insert_vme");
+      free(vme);
+      return false;
+    }
+    //새로 받은 페이지를 현 프로세스의 페이지디렉토리에 넣어준다.
+    bool flag_install_page=install_page(vme->vaddr,new_page,vme->writable);
+    if(!flag_install_page){
+      printf("failed flag_install_page");
+      free(vme);
+      return false;
+    }
+    return true;
+  }
+}
+/*prj4*/

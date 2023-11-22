@@ -101,8 +101,7 @@ timer_sleep (int64_t ticks)
 
   ASSERT (intr_get_level () == INTR_ON);
   old_level = intr_disable ();
-  // while (timer_elapsed (start) < ticks) 
-  //   thread_yield ();
+
   /*busy waiting 하지 말고 이 함수를 호출한 스레드를 sleeping_list에 삽입*/
   struct thread* cur=thread_current();
   //printf("making thread %s to sleep\n",cur->name);
@@ -201,15 +200,18 @@ timer_interrupt (struct intr_frame *args UNUSED)
   struct list_elem* i=start;
   struct thread* t;
 
+
   //printf("timer interrupt here\n");
   if(!list_empty(&sleeping_list)){
     while(1){
       t=list_entry(i,struct thread,elem);
       //printf("thread : %s, wake_tick : %d\n",t->name,t->wake_tick);
       //일어나야 할 스레드를 찾았다.
-      if(ticks >= (t->wake_tick)){
-        i=list_remove(i); //remove from sleeping list
-        thread_unblock(t); //change state to ready and push at ready list
+      if(t!=NULL && ticks >= (t->wake_tick)){
+        if(t!=NULL){
+          i=list_remove(i); //remove from sleeping list
+          thread_unblock(t); //change state to ready and push at ready list
+        }
       }
       else i=list_next(i);
 
@@ -218,8 +220,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
   }
 
   thread_tick ();
-  if(thread_prior_aging||thread_mlfqs){
-    //thread_current()->recent_cpu=i_add_f(1,thread_current()->recent_cpu);
+  if(thread_mlfqs){
     if(timer_ticks()%TIMER_FREQ==0) update_rc_la();
     if(timer_ticks()%4==0) update_priority();
   }

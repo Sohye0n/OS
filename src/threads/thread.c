@@ -124,7 +124,7 @@ thread_start (void)
   struct semaphore idle_started;
   sema_init (&idle_started, 0);
   /*prj3에서 MIN에서 DEFAULT로 수정함*/
-  thread_create ("idle", PRI_MIN, idle, &idle_started);
+  thread_create ("idle", PRI_DEFAULT, idle, &idle_started);
 
   /* Start preemptive thread scheduling. */
   intr_enable ();
@@ -242,7 +242,7 @@ thread_create (const char *name, int priority,
   //thread_unblock()은 스케줄링 안해줌. yield는 해줌.
   if(thread_current()->priority < priority) {
    // printf("%d thread(%p)\n",thread_current()->tid,thread_current()->name);
-    thread_yield();
+    thread_try_to_yield();
   }
 
   return tid;
@@ -322,6 +322,9 @@ void insert_in_p_order(struct list* list, struct thread* t){
    be important: if the caller had disabled interrupts itself,
    it may expect that it can atomically unblock a thread and
    update other data. */
+
+
+
 void
 thread_unblock (struct thread *t) 
 {
@@ -404,7 +407,6 @@ thread_yield (void)
   old_level = intr_disable ();
   if (cur != idle_thread){
     insert_in_p_order(&ready_list, cur);
-    //list_push_back (&ready_list, &cur->elem);
   }
   cur->status = THREAD_READY;
   schedule ();
@@ -432,10 +434,14 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  if(thread_mlfqs) return;
-  int old_priority=thread_current()->priority;
-  thread_current ()->priority = new_priority;
-  if(old_priority > new_priority) thread_yield();
+  //not working if mlfqs
+  if(!thread_mlfqs){
+    //이전 값 저장
+    int old_priority=thread_current()->priority;
+    thread_current ()->priority = new_priority;
+    //현재값과 비교하여 더 작아졌다면 리스케줄
+    if(old_priority > new_priority) thread_try_to_yield();
+  }
 }
 
 /* Returns the current thread's priority. */
@@ -449,13 +455,18 @@ thread_get_priority (void)
 void
 thread_set_nice (int nice) 
 {
+  //이전의 priority 보관하고 새겻과 비교
   int old_priority=thread_current()->priority;
   struct thread* t=thread_current();
   t->nice=nice;
   t->priority=f_sub_f(PRI_MAX*F , f_add_f(i_div_f(4 , t->recent_cpu) , i_mul_f(2*F , t->nice)))/F;
+
+  //최댓값을 넘어간다면 최댓값으로 맞춰주자
   if(t->priority > PRI_MAX) t->priority=PRI_MAX;
+  //최솟값보다 작아진다면 최솟값으로 맞춰주자
   else if(t->priority < PRI_MIN) t->priority=PRI_MIN;
-  if(old_priority > t->priority) thread_yield();
+  //이전의 값이 더 크다면 양보
+  if(old_priority > t->priority) thread_try_to_yield();
 }
 
 /* Returns the current thread's nice value. */
@@ -764,3 +775,13 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+void thread_try_to_yield(){
+  if (!list_empty(&ready_list) && thread_current() != idle_thread)
+    thread_yield();
+}
+
+bool list_try_to_remove(){
+  if (thread_current() != idle_thread) return true;
+  else return false;
+}

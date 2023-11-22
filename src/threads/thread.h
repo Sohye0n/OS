@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "synch.h"
+#include <hash.h>
 
 #ifndef USERPROG
 extern bool thread_prior_aging;
@@ -117,7 +118,8 @@ struct thread
    int recent_cpu;
 
    /*prj4*/
-   struct hash vm; //가상주소를 저장할 해시테이블
+   //virtual address를 저장할 해시테이블
+   struct hash vm_hash;
    /*prj4*/
 
     /* Owned by thread.c. */
@@ -165,5 +167,8 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+void thread_try_to_yield(void);
+bool list_try_to_remove(void);
 
 #endif /* threads/thread.h */

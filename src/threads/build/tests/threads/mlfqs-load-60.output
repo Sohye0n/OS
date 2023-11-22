@@ -1,4 +1,4 @@
-qemu-system-i386 -device isa-debug-exit -hda /tmp/T7znLGX_HP.dsk -m 4 -net none -nographic -monitor null
+qemu-system-i386 -device isa-debug-exit -hda /tmp/U7krmKWPIN.dsk -m 4 -net none -nographic -monitor null
 c[?7l[2J[0mSeaBIOS (version 1.13.0-1ubuntu1.1)
 Booting from Hard Disk...
 PPiiLLoo  hhddaa1
@@ -8,7 +8,7 @@ Kernel command line: -q -mlfqs run mlfqs-load-60
 Pintos booting with 3,968 kB RAM...
 367 pages available in kernel pool.
 367 pages available in user pool.
-Calibrating timer...  410,419,200 loops/s.
+Calibrating timer...  392,806,400 loops/s.
 Boot complete.
 Executing 'mlfqs-load-60':
 (mlfqs-load-60) begin
@@ -106,8 +106,8 @@ Executing 'mlfqs-load-60':
 (mlfqs-load-60) After 178 seconds, load average=5.24.
 (mlfqs-load-60) end
 Execution of 'mlfqs-load-60' complete.
-Timer: 18826 ticks
-Thread: 12800 idle ticks, 6026 kernel ticks, 0 user ticks
+Timer: 18824 ticks
+Thread: 12800 idle ticks, 6025 kernel ticks, 0 user ticks
 Console: 5366 characters output
 Keyboard: 0 keys pressed
 Powering off...
