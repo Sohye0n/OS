@@ -23,6 +23,8 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 void get_filename(const char*, char*);
+bool load_to_pmemory(void* vaddr, struct vm_entry* vme);
+bool load_file_to_page(void* kaddr, struct vm_entry* vme);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -185,17 +187,15 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
+  /*create vm(hashtable)*/
+  vm_init(&thread_current()->vm_hash);
+  printf("process start\n");
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-
-  /*prj4*/
-  //load 하기 전에 해시테이블 생성
-  vm_init(&thread_current()->vm_hash);
-  /*prj4*/
-
   success = load (file_name, &if_.eip, &if_.esp); //입력으로 받은 프로그램이 실행 가능한지 체크 후 스택을 할당해줌.
   
   /* If load failed, quit. */
@@ -288,10 +288,6 @@ process_exit (void)
       cur->pagedir = NULL;
       pagedir_activate (NULL);
       pagedir_destroy (pd);
-      /*prj4*/
-      //프로세스의 vm 해시테이블과 그 안의 vm_entry들을 다 free 해줘야 한다.
-      vm_delete(&thread_current()->vm_hash);
-      /*prj4*/
       //printf("cur thread : %s, sema up!\n",cur->name); 
     }
     sema_up(&cur->state); 
@@ -382,21 +378,6 @@ static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
                           bool writable);
-
-/*prj4*/
-bool handle_mm_fault(void* vaddr){
-  return true;
-  //create an empty frame for physical memory
-  struct page *frame=palloc_get_page(PAL_USER);
-  
-  //if created
-  if(frame){
-    //load physical memory and map
-    return true;
-  }
-  else return false;
-}
-/*prj4*/
 
 /* Loads an ELF executable from FILE_NAME into the current thread.
    Stores the executable's entry point into *EIP
@@ -544,7 +525,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   //null문자부터 먼저 집어넣는다.
   *esp=*esp-4; 
   **(uint32_t **)esp=0;
-  printf("addresss : %p\n",*esp);
+  //printf("addresss : %p\n",*esp);
 
   //4개의 명령어의 주소값을 집어넣는다.
   for(int i=cmd_num-1; i>=0; i--){
@@ -651,11 +632,12 @@ static bool
 load_segment (struct file *file, off_t ofs, uint8_t *upage,
               uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
 {
+  struct file* tmp=file_reopen(file);
   ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
 
-  file_seek (file, ofs);
+  file_seek (tmp, ofs);
   while (read_bytes > 0 || zero_bytes > 0) 
     {
       /* Calculate how to fill this page.
@@ -664,43 +646,50 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-      /* Get a page of memory. */
-      uint8_t *kpage = palloc_get_page (PAL_USER);
-      if (kpage == NULL)
-        return false;
+      // /* Get a page of memory. */
+      // uint8_t *kpage = palloc_get_page (PAL_USER);
+      // if (kpage == NULL)
+      //   return false;
 
-      /* Load this page. */
-      if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-        {
-          palloc_free_page (kpage);
-          return false; 
-        }
-      memset (kpage + page_read_bytes, 0, page_zero_bytes);
+      // /* Load this page. */
+      // if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
+      //   {
+      //     palloc_free_page (kpage);
+      //     return false; 
+      //   }
+      // memset (kpage + page_read_bytes, 0, page_zero_bytes);
 
-      /* Add the page to the process's address space. */
-      if (!install_page (upage, kpage, writable)) 
-        {
-          palloc_free_page (kpage);
-          return false; 
-        }
+      // /* Add the page to the process's address space. */
+      // if (!install_page (upage, kpage, writable)) 
+      //   {
+      //     palloc_free_page (kpage);
+      //     return false; 
+      //   }
 
-      //다이렉트로 물리페이지와 매핑하는게 아니라 vme와 매핑한다.
-      //make vm_entry
-      struct vm_entry* vm_entry=malloc(sizeof(vm_entry));
-      vm_entry->type=BIN;
-      vm_entry->vaddr=upage;
-      vm_entry->writable=writable;
-      vm_entry->is_loaded=false; //아직 물리 메모리에 올라가진 않았으니
-      vm_entry->offset=ofs;
-      vm_entry->read_bytes=page_read_bytes;
-      vm_entry->zero_bytes=page_zero_bytes;
+      //   hex_dump(kpage,kpage,100,1);
 
-      //put hash_elem in the hashtable
-      hash_insert(&thread_current()->vm_hash,&vm_entry->hash_elem);
+      /*do not load to physical memory
+      add all vaddr to supplemental page table, vm_hash*/
+      struct vm_entry* vme=malloc(sizeof(struct vm_entry));
+      vme->type=BIN;
+      vme->vaddr=upage;
+      vme->writable=writable;
+      vme->is_loaded=false;
+      vme->offset=ofs;
+      vme->file=tmp;
+      vme->read_bytes=page_read_bytes;
+      vme->zero_bytes=page_zero_bytes;
+      //printf("offset : %d\n",vme->offset);
+      //printf("load - upage : %p\n",upage);
+
+      //add vm entry to vm table
+      hash_insert(&thread_current()->vm_hash,&vme->hash_elem);
 
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
+      /*prj4*/
+      ofs+=page_read_bytes;
       upage += PGSIZE;
     }
   return true;
@@ -724,15 +713,16 @@ setup_stack (void **esp)
         palloc_free_page (kpage);
     }
 
-    //이 스택(PCB)에 대한 vm entry를 생성함.
-    struct vm_entry* vm_entry=malloc(sizeof(vm_entry));
-    vm_entry->type=0; //일단 모르니까 냅두기
-    vm_entry->vaddr=(uint8_t *)PHYS_BASE-PGSIZE;
-    vm_entry->writable=true; //스택에 쌓임 = 수정 가능함
-    vm_entry->is_loaded=true; //스택에 쌓임 = 메모리에 올라옴
-
-    //put hash_elem in the hashtable
-    hash_insert(&thread_current()->vm_hash,&vm_entry->hash_elem);
+  /*add this stack's vaddr to vm table*/
+  struct vm_entry* vme=malloc(sizeof(struct vm_entry));
+  vme->type=BIN;
+  vme->vaddr=kpage;
+  vme->writable=true;
+  vme->is_loaded=true;
+  vme->read_bytes=0;
+  vme->zero_bytes=PGSIZE;
+  hash_insert(&thread_current()->vm_hash,&vme->hash_elem);
+  //printf("stack's vaddr : %p %p\n",kpage,((uint8_t *) PHYS_BASE) - PGSIZE);
   return success;
 }
 
@@ -756,7 +746,6 @@ install_page (void *upage, void *kpage, bool writable)
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
 
-/*prj4*/
 bool stack_growth(void* vaddr){
   //palloc_get_page로 페이지를 받는다. 이 페이지는 물리 메모리와 매핑 o.
   //유저 메모리 풀에 할당해야 하므로
@@ -776,10 +765,11 @@ bool stack_growth(void* vaddr){
     //이 vme를 프로세스의 해시테이블에 넣어준다.
     bool flag_insert_vme=vm_insert(&thread_current()->vm_hash,vme);
     if(!flag_insert_vme){
-      printf("failed insert_vme");
+      //printf("failed insert_vme");
       free(vme);
       return false;
     }
+    //printf("kaddr : %p  |  uaddr : %p\n",new_page,vme->vaddr);
     //새로 받은 페이지를 현 프로세스의 페이지디렉토리에 넣어준다.
     bool flag_install_page=install_page(vme->vaddr,new_page,vme->writable);
     if(!flag_install_page){
@@ -790,4 +780,49 @@ bool stack_growth(void* vaddr){
     return true;
   }
 }
-/*prj4*/
+
+bool load_file_to_page(void* kaddr, struct vm_entry* vme){
+      /* Load this page. */
+      if (file_read_at (vme->file, kaddr, vme->read_bytes, vme->offset) != (int) vme->read_bytes)
+        {
+          palloc_free_page (kaddr);
+          return false; 
+        }
+        //printf("%d\n",vme->read_bytes);
+        //hex_dump(kaddr,kaddr,100,1);
+      memset (kaddr + vme->read_bytes, 0, vme->zero_bytes);
+      return true;
+}
+
+bool load_to_pmemory(void* vaddr, struct vm_entry* vme){
+    /*load one page at physical memory*/
+
+    //proces's page -> get from user memory pool
+    void* newpage=palloc_get_page(PAL_USER);
+    //printf("newpage : %p  ||   page address: %p\n",newpage,pg_round_down(vaddr));
+    //if(newpage==pg_round_down(vaddr)) printf("both are same!\n");
+    //if there was enough space
+    if(newpage){
+        bool load_flag=false;
+        //load file to page
+        if(vme->type==0){
+          //printf("here\n");
+          load_flag=load_file_to_page(newpage,vme);
+          //printf("load result : %d\n",load_flag);
+          if(!load_flag){
+            return false;
+          }        
+        }
+
+        //now add page to page directory
+        bool flag;
+        flag=install_page(vme->vaddr,newpage,true);
+        if(!flag){
+            printf("failed to create\n");
+            return false;
+        }
+
+        return true;
+    }
+    return false;
+}

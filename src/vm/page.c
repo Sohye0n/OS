@@ -42,8 +42,8 @@ bool vm_insert(struct hash* vm, struct hash_elem* e){
     struct hash_elem* try;
     try=hash_insert(vm,e);
     //hash was already full
-    if(try==NULL) return false;
-    else return true;
+    if(try==NULL) return true;
+    else return false;
 }
 
 //해시테이블에서 vaddr을 가진 vm_entry를 찾아옴
