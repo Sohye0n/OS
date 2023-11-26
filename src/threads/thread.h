@@ -120,6 +120,8 @@ struct thread
    /*prj4*/
    //virtual address를 저장할 해시테이블
    struct hash vm_hash;
+   //physical memory에 load 되거나, load 될 예정 or load 되었던 page들의 list
+   struct list frame_list;
    /*prj4*/
 
     /* Owned by thread.c. */

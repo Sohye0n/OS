@@ -189,7 +189,7 @@ start_process (void *file_name_)
 
   /*create vm(hashtable)*/
   vm_init(&thread_current()->vm_hash);
-  printf("process start\n");
+  //printf("process start\n");
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -747,6 +747,7 @@ install_page (void *upage, void *kpage, bool writable)
 }
 
 bool stack_growth(void* vaddr){
+  //printf("got vaddr = %p\n",vaddr);
   //palloc_get_page로 페이지를 받는다. 이 페이지는 물리 메모리와 매핑 o.
   //유저 메모리 풀에 할당해야 하므로
   void* new_page=palloc_get_page(PAL_USER);
@@ -755,25 +756,33 @@ bool stack_growth(void* vaddr){
 
   //유저 메모리 풀에 공간이 있다면? -> 이 new_page를 리턴해야.
   struct vm_entry* vme=malloc(sizeof(struct vm_entry));
-  vme->vaddr=pg_round_down(vaddr);
+  //vme->vaddr=pg_round_down(vaddr);
+  vme->vaddr=vaddr;
+  //printf("now vaddr is : %p\n",vme->vaddr);
   //vme->type=VM_SWAP; <<잘 모르니까 일단 패스
   //물리 메모리에 올라왔으니
   vme->is_loaded=true;
   //왜인진 모르겠으나..? 아마 유저 메모리 풀 영역이라 그런 듯.
   vme->writable=true;
   {
-    //이 vme를 프로세스의 해시테이블에 넣어준다.
-    bool flag_insert_vme=vm_insert(&thread_current()->vm_hash,vme);
-    if(!flag_insert_vme){
-      //printf("failed insert_vme");
+    //printf("now vaddr is : %p\n",vme->vaddr);
+
+    //printf("kaddr : %p  |  uaddr : %p\n",new_page,vme->vaddr);
+    //새로 받은 페이지를 현 프로세스의 페이지디렉토리에 넣어준다.
+    //!!!중요!! 왜인지는 모르겠으나 hash에 insert해버리면 vme->vaddr 값이 바뀐다...
+    bool flag_install_page=install_page(pg_round_down(vme->vaddr),new_page,vme->writable);
+
+    //put new page to page directory
+    if(!flag_install_page){
+      //printf("failed flag_install_page");
       free(vme);
       return false;
     }
-    //printf("kaddr : %p  |  uaddr : %p\n",new_page,vme->vaddr);
-    //새로 받은 페이지를 현 프로세스의 페이지디렉토리에 넣어준다.
-    bool flag_install_page=install_page(vme->vaddr,new_page,vme->writable);
-    if(!flag_install_page){
-      printf("failed flag_install_page");
+
+    //push new entry to vm_hash
+    bool flag_insert_vme=vm_insert(&thread_current()->vm_hash,&vme->hash_elem);
+    if(!flag_insert_vme){
+      //printf("failed insert_vme");
       free(vme);
       return false;
     }
@@ -799,8 +808,9 @@ bool load_to_pmemory(void* vaddr, struct vm_entry* vme){
 
     //proces's page -> get from user memory pool
     void* newpage=palloc_get_page(PAL_USER);
-    //printf("newpage : %p  ||   page address: %p\n",newpage,pg_round_down(vaddr));
+    printf("newpage : %p  ||   page address: %p\n",newpage,pg_round_down(vaddr));
     //if(newpage==pg_round_down(vaddr)) printf("both are same!\n");
+    
     //if there was enough space
     if(newpage){
         bool load_flag=false;
@@ -808,7 +818,7 @@ bool load_to_pmemory(void* vaddr, struct vm_entry* vme){
         if(vme->type==0){
           //printf("here\n");
           load_flag=load_file_to_page(newpage,vme);
-          //printf("load result : %d\n",load_flag);
+          printf("load result : %d\n",load_flag);
           if(!load_flag){
             return false;
           }        
@@ -824,5 +834,20 @@ bool load_to_pmemory(void* vaddr, struct vm_entry* vme){
 
         return true;
     }
-    return false;
+
+    //no space left -> page replacement
+    else{
+      /*1. page replacement 함수를 호출해서 새 페이지 주소를 리턴 받는다.*/
+      void* newpage_replaced=page_replace();
+      /*2. vme->vaddr에 이 주소를 할당한다. << X. 이미 vme는 존재함*/
+      /*2. 페이지 디렉토리에 이 페이지를 넣어준다.*/
+      //now add page to page directory
+      bool flag;
+      flag=install_page(vme->vaddr,newpage,true);
+      if(!flag){
+          printf("failed to create\n");
+          return false;
+      }
+      return true;
+    }
 }

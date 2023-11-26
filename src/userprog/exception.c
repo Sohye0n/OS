@@ -181,22 +181,29 @@ page_fault (struct intr_frame *f)
          printf("have to load : %p\n",vme->vaddr);
          vme->is_loaded=true;
          bool success=load_to_pmemory(fault_addr,vme);
-         if(!success)exit(-1);
+         if(!success){
+            printf("failed to load\n");
+            exit(-1);
+         }
       }
       //vme가 NULL이다 -> 공간이 모자라다. 따라서 스택을 더 키워준다.
       else{
-         printf("sulma sival...\n");
+
          //근데 커널이 유저 영역을 침범한다면?
          if(!user) exit(-1);
+
          //esp가 커널 영역을 침범한다면?
          if(is_kernel_vaddr(f->esp)) exit(-1);
-         //유저영역 끝 4개페이지는 이미 할당됨.
-         if(f->esp<=PHYS_BASE-4*4*1024) exit(-1);
+
+         //스택 밖의 영역에 접근한다면 (esp보다 더 작은 주소에 접근한다면)
+         if(fault_addr<f->esp) exit(-1);
+
          //요청 영역이 커널 영역이라면?
          //vaddr 자체는 유저 영역이어도 이걸 포함하는 페이지는 커널 영역일 수도 있음.
          void* page_where_faddr_in;
          page_where_faddr_in=pg_round_down(fault_addr);
          if(is_kernel_vaddr(page_where_faddr_in) || is_kernel_vaddr(fault_addr)) exit(-1);
+         if(is_user_vaddr(fault_addr)) printf("%p user\n",fault_addr);
 
          //나머지 경우는 유저가 유저 영역을 사용하는 것이므로 스택을 더 확장해주면 된다.
          printf("calling stack_grow function\n");

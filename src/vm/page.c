@@ -15,6 +15,7 @@ static unsigned vm_hash_func(const struct hash_elem *e, void *aux){
 static bool vm_less_func(const struct hash_elem *a, const struct hash_elem *b, void *aux){
     struct vm_entry* va=hash_entry(a,struct vm_entry,hash_elem);
     struct vm_entry* vb=hash_entry(b,struct vm_entry,hash_elem);
+    //printf("va->vaddr : %p   |   vb->vaddr : %p\n",va->vaddr,vb->vaddr);
     //true if a < b
     return (va->vaddr<vb->vaddr);
 }

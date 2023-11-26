@@ -99,6 +99,9 @@ struct hash_elem *
 hash_insert (struct hash *h, struct hash_elem *new)
 {
   struct list *bucket = find_bucket (h, new);
+  // /*prj4-debug*/
+  // printf("bucket addr : %p\n",bucket);
+  // /*prj4-debug*/
   struct hash_elem *old = find_elem (h, bucket, new);
 
   if (old == NULL) 
@@ -319,6 +322,10 @@ find_elem (struct hash *h, struct list *bucket, struct hash_elem *e)
   for (i = list_begin (bucket); i != list_end (bucket); i = list_next (i)) 
     {
       struct hash_elem *hi = list_elem_to_hash_elem (i);
+      // /*prj4-debug*/
+      // struct vm_entry* vme=hash_entry(hi,struct vm_entry,hash_elem);
+      // printf("hi->vaddr : %p\n",vme->vaddr);
+      // /*prj4-debug*/
       if (!h->less (hi, e, h->aux) && !h->less (e, hi, h->aux))
         return hi; 
     }
