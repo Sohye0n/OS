@@ -102,6 +102,8 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
+  /*prj4*/
+  framelist_init();
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();

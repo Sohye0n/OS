@@ -175,10 +175,11 @@ page_fault (struct intr_frame *f)
 
       //1. fault가 발생한 vaddr을 가진 vm_entry를 가져온다
       struct vm_entry* vme=search(fault_addr);
+      printf("vme's type : %d\n",vme->type);
       //vme가 존재한다 -> 물리메모리에 load해주면 됨
       if(vme){
          //2. 얘를 물리 메모리에 올려야하므로 is_load 변수를 true로 해준다.
-         printf("have to load : %p\n",vme->vaddr);
+         //printf("have to load : %p\n",vme->vaddr);
          vme->is_loaded=true;
          bool success=load_to_pmemory(fault_addr,vme);
          if(!success){

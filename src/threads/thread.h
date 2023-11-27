@@ -120,8 +120,6 @@ struct thread
    /*prj4*/
    //virtual address를 저장할 해시테이블
    struct hash vm_hash;
-   //physical memory에 load 되거나, load 될 예정 or load 되었던 page들의 list
-   struct list frame_list;
    /*prj4*/
 
     /* Owned by thread.c. */
@@ -133,6 +131,10 @@ bool is_idle_thread(struct thread* t);
 void insert_in_p_order(struct list* list, struct thread* t);
 void update_rc_la(void);
 void update_priority(void);
+
+/*prj4*/
+struct list frame_list;
+struct lock frame_lock;
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
