@@ -61,7 +61,9 @@ struct vm_entry *search(void* vaddr){
     hash_elem=hash_find(&thread_current()->vm_hash,&mikki.hash_elem);
 
     //만약 찾는 vaddr에 해당하는 hahs_elem가 없다면 hash_find는 null을 리턴함.
-    if(hash_elem==NULL) return NULL;
+    if(hash_elem==NULL){
+        return NULL;
+    }
     //찾는 vaddr에 해당하는 hash_elem이 있다면 이를 포함하는 vme를 찾아옴.
     else{
         real=hash_entry(hash_elem,struct vm_entry,hash_elem);

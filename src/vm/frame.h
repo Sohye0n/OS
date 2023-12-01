@@ -4,6 +4,7 @@
 #include "../lib/kernel/list.h"
 #endif
 #include "page.h"
+#include "swap.h"
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "userprog/pagedir.h"

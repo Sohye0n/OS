@@ -128,6 +128,10 @@ main (void)
 #endif
 
   printf ("Boot complete.\n");
+
+  /*prj4*/
+  framelist_init();
+  swap_init();
   
   /* Run actions specified on kernel command line. */
   run_actions (argv);

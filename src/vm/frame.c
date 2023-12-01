@@ -88,11 +88,11 @@ void page_replace(struct list* frame_list){
 
     //else
         while(1){
-            printf("cur : %p || accessed : %d(thread %d)\n",list_entry(cur,struct page, pelem)->vme->vaddr,
-            pagedir_is_accessed(list_entry(cur,struct page, pelem)->thr->pagedir,
-            list_entry(cur,struct page, pelem)->vme->vaddr),
-            thread_current()->tid
-            );
+            // printf("cur : %p || accessed : %d(thread %d)\n",list_entry(cur,struct page, pelem)->vme->vaddr,
+            // pagedir_is_accessed(list_entry(cur,struct page, pelem)->thr->pagedir,
+            // list_entry(cur,struct page, pelem)->vme->vaddr),
+            // thread_current()->tid
+            // );
             //get certain page
             pg=list_entry(cur,struct page,pelem);
             //printf("current page's vaddr : %p\n",pg->vme->vaddr);
@@ -101,10 +101,20 @@ void page_replace(struct list* frame_list){
             
             //if not accessed -> change to accessed & replace
             if(!is_accessed){
-                printf("current page's vaddr : %p\n",pg->vme->vaddr);
+                //printf("current page's vaddr : %p\n",pg->vme->vaddr);
                 //change to accessed
                 pagedir_set_accessed(pg->thr->pagedir,pg->vme->vaddr,true); 
+                
                 //replace
+                //0. if page is dirty OR if it was swapped ->  swap out to disk
+                if(pagedir_is_dirty(pg->thr->pagedir, pg->vme->vaddr) || pg->vme->type==SWAP){
+                    //근데 한번 swap out된 페이지는 왜 다시 swap out 되어야 하나...?
+                    //if(pg->vme->type==SWAP) printf("!!!!!!!!swap!!!!!!!!!!\n");
+                    int bitmapidx=swap_out(pg->physical_addr);
+                    if(bitmapidx<0) printf("swap_out error\n");
+                    pg->vme->type=SWAP;
+                    pg->vme->swap_slot=bitmapidx;
+                }
                 //1. free current page
                 pagedir_clear_page (pg->thr->pagedir, pg_round_down(pg->vme->vaddr));
                 palloc_free_page(pg->physical_addr);

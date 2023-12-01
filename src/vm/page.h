@@ -5,8 +5,9 @@
 #endif
 
 #define BIN 0
-#define FILE 1
+#define FILE_VM 1
 #define ANONYMOUS 2
+#define SWAP 3
 
 /*page나 vm_entry나 비슷한 역할인데 왜 2개를 따로 정의하나? 
 >> page replacement를 구현하기 위해.
