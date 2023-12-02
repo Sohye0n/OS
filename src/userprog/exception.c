@@ -373,15 +373,7 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-//   /*내가 추가함... 테케 bad-sp 땜에. 커널이 유저 영역을 참조하려고 하면 막아야 함. 근데 커널이 왜 참조하지....*/
-//     if (!user) exit(-1);
-//     if (is_kernel_vaddr(fault_addr)) exit(-1);
-//     if (not_present) {
-//     //printf("panic\n");
-//     exit(-1);
-//     }
-
-   /* To implement virtual memory, delete the rest of the function
+     /* To implement virtual memory, delete the rest of the function
       body, and replace it with code that brings in the page to
       which fault_addr refers. */
    // printf ("Page fault at %p: %s error %s page in %s context.\n",
@@ -389,6 +381,7 @@ page_fault (struct intr_frame *f)
    //          not_present ? "not present" : "rights violation",
    //          write ? "writing" : "reading",
    //          user ? "user" : "kernel");
+
 
    //페이지폴트에 대한 처리를 해줘야 함
    //말 그대로 물리메모리에 올라와있지 않은 메모리를 참조했을 때
@@ -418,7 +411,7 @@ page_fault (struct intr_frame *f)
          if(is_kernel_vaddr(f->esp)) exit(-1);
 
          //스택 밖의 영역에 접근한다면 (esp보다 더 작은 주소에 접근한다면)
-         if(fault_addr<f->esp) exit(-1);
+         if(fault_addr<f->esp-32) exit(-1);
 
          //요청 영역이 커널 영역이라면?
          //vaddr 자체는 유저 영역이어도 이걸 포함하는 페이지는 커널 영역일 수도 있음.
@@ -426,10 +419,10 @@ page_fault (struct intr_frame *f)
          page_where_faddr_in=pg_round_down(fault_addr);
          //printf("here?\n");
          if(is_kernel_vaddr(fault_addr)){
-            //printf("hh\n");
             exit(-1);
          }
          //if(is_user_vaddr(fault_addr)) printf("%p user\n",fault_addr);
+         if(pg_round_down(fault_addr)<PHYS_BASE-8*1024*1024) exit(-1);
 
          //나머지 경우는 유저가 유저 영역을 사용하는 것이므로 스택을 더 확장해주면 된다.
          //printf("calling stack_grow function\n");
@@ -437,9 +430,9 @@ page_fault (struct intr_frame *f)
          //만약 스택 확장에 실패했다면
          if(!stack_grow) exit(-1);
       }
-   }
+   } 
    else{
-      printf("eke\n");
+      //printf("eke\n");
       exit(-1);
    }
 

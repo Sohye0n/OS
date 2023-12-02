@@ -242,7 +242,7 @@ thread_create (const char *name, int priority,
   //thread_unblock()은 스케줄링 안해줌. yield는 해줌.
   if(thread_current()->priority < priority) {
    // printf("%d thread(%p)\n",thread_current()->tid,thread_current()->name);
-    thread_try_to_yield();
+    thread_yield();
   }
 
   return tid;
@@ -440,7 +440,7 @@ thread_set_priority (int new_priority)
     int old_priority=thread_current()->priority;
     thread_current ()->priority = new_priority;
     //현재값과 비교하여 더 작아졌다면 리스케줄
-    if(old_priority > new_priority) thread_try_to_yield();
+    if(old_priority > new_priority) thread_yield();
   }
 }
 
@@ -466,7 +466,7 @@ thread_set_nice (int nice)
   //최솟값보다 작아진다면 최솟값으로 맞춰주자
   else if(t->priority < PRI_MIN) t->priority=PRI_MIN;
   //이전의 값이 더 크다면 양보
-  if(old_priority > t->priority) thread_try_to_yield();
+  if(old_priority > t->priority) thread_yield();
 }
 
 /* Returns the current thread's nice value. */

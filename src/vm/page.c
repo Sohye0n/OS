@@ -24,6 +24,13 @@ void vm_entry_delete_func(struct hash_elem* e,void* aux){
     //find vm_entry (vm_entry : includes hash_elem e)
     struct vm_entry *vme=hash_entry(e,struct vm_entry,hash_elem);
     if(vme){
+        //if loaded -> free physical memory & free page which includes vme
+        if(vme->is_loaded){
+            page_delete_func(vme);
+            //clear virtual memory
+            pagedir_clear_page(thread_current()->pagedir,vme->vaddr);
+        }
+        //free vm_entry
         free(vme);
     }
 }
@@ -35,8 +42,9 @@ void vm_init(struct hash *vm_hash){
     hash_init (vm_hash, vm_hash_func, vm_less_func, NULL);
 }
 
-void vm_delete(struct hash* vm, hash_action_func* func){
-    hash_destroy(vm,func);
+void vm_clear(struct hash* vm){
+    //printf("trying to clear...\n");
+    hash_destroy(vm,vm_entry_delete_func);
 }
 
 bool vm_insert(struct hash* vm, struct hash_elem* e){

@@ -15,5 +15,6 @@ void framelist_init(void);
 void framelist_insert(struct list* frame_list, struct page* page);
 void framelist_delete(struct list* frame_list, struct page* page);
 void page_replace(struct list* frame_list);
+void page_delete_func(struct vm_entry* vme);
 struct list_elem* cur;
 #endif Frame

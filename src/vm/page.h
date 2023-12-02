@@ -41,6 +41,8 @@ struct vm_entry{
 
 void vm_init(struct hash *vm);
 bool vm_insert(struct hash* vm, struct hash_elem* e);
+void vm_entry_delete_func(struct hash_elem* e,void* aux);
+void vm_clear(struct hash* vm);
 //return vm_entry with such vaddr
 struct vm_entry *search(void* vaddr);
 #endif

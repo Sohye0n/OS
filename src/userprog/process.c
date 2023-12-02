@@ -46,7 +46,11 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
   //printf("1\n");
-  if(filesys_open(file_name_parsed)==NULL) return -1;
+  //printf("%s\n",file_name_parsed);
+  if(filesys_open(file_name_parsed)==NULL){
+    printf("1-1?\n");
+    return -1;
+  }
   //printf("2\n");
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name_parsed, PRI_DEFAULT, start_process, fn_copy);
@@ -204,6 +208,7 @@ start_process (void *file_name_)
   if(!success) thread_current()->load_success=0;
   sema_up(&thread_current()->load_lock);  
   if (!success){ 
+    printf("here?\n");
     exit(-1);
   }
 
@@ -279,6 +284,12 @@ process_exit (void)
   pd = cur->pagedir;
   if (pd != NULL)
     {  
+
+      // //clear all vme
+      lock_acquire(&frame_lock);
+      vm_clear(&thread_current()->vm_hash);
+      lock_release(&frame_lock);
+
       /* Correct ordering here is crucial.  We must set
          cur->pagedir to NULL before switching page directories,
          so that a timer interrupt can't switch back to the
@@ -291,6 +302,7 @@ process_exit (void)
       pagedir_destroy (pd);
       //printf("cur thread : %s, sema up!\n",cur->name); 
     }
+
     sema_up(&cur->state); 
     sema_down(&cur->mem);
 }
@@ -701,20 +713,23 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 static bool
 setup_stack (void **esp) 
 {
-  uint8_t *kpage;
+  struct page *newpage;
+  newpage=malloc(sizeof(struct page));
   bool success = false;
   void *vaddr = ((uint8_t *) PHYS_BASE) - PGSIZE;
 
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  void* kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  newpage->physical_addr=kpage;
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
         *esp = PHYS_BASE;
-      else
+      else{
+        printf("this exists?\n");
         palloc_free_page (kpage);
+      }
     }
-
   /*add this stack's vaddr to vm table*/
   struct vm_entry* vme=malloc(sizeof(struct vm_entry));
   vme->type=SWAP;
@@ -723,6 +738,11 @@ setup_stack (void **esp)
   vme->is_loaded=true;
   vme->read_bytes=0;
   vme->zero_bytes=PGSIZE;
+  newpage->thr=thread_current();
+  newpage->vme=vme;
+  lock_acquire(&frame_lock);
+  framelist_insert(&frame_list, newpage);
+  lock_release(&frame_lock);
   hash_insert(&thread_current()->vm_hash,&vme->hash_elem);
   //printf("stack's vaddr : %p %p\n",kpage,((uint8_t *) PHYS_BASE) - PGSIZE);
   return success;
@@ -786,6 +806,7 @@ bool stack_growth(void* vaddr){
     //4. free struct page
     free(page);
     free(vme);
+    lock_release(&frame_lock);
     return false;
   
 
@@ -800,6 +821,7 @@ bool stack_growth(void* vaddr){
       //4. free struct page
       free(page);
       free(vme);
+      lock_release(&frame_lock);
       return false;
     }
 
@@ -865,7 +887,7 @@ bool load_to_pmemory(void* vaddr, struct vm_entry* vme){
 
       //now add page to page directory
       bool flag;
-      flag=install_page(vme->vaddr,newpage,true);
+      flag=install_page(vme->vaddr,newpage,vme->writable);
       if(!flag){
           printf("failed to create\n");
           //free struct page
@@ -878,6 +900,7 @@ bool load_to_pmemory(void* vaddr, struct vm_entry* vme){
       }
 
       //insert vme to page
+      vme->is_loaded=true;
       page->vme=vme;
       //add page to frame_list
       framelist_insert(&frame_list, page);
@@ -890,7 +913,7 @@ bool load_to_pmemory(void* vaddr, struct vm_entry* vme){
       //printf("uu\n");
       //1. free some page
       page_replace(&frame_list);
-      
+      //printf("step 1 end\n");
       //2. get new page
       void* newpage_replaced=palloc_get_page(PAL_USER);
       
@@ -901,11 +924,12 @@ bool load_to_pmemory(void* vaddr, struct vm_entry* vme){
       page->thr=thread_current();
       //printf("newpage_replaced : %p\n",newpage_replaced);
       page->physical_addr=newpage_replaced;
+      vme->is_loaded=true;
       page->vme=vme;
       
       //3. now add page to page directory
       bool flag;
-      flag=install_page(vme->vaddr,page->physical_addr,true);
+      flag=install_page(vme->vaddr,page->physical_addr,vme->writable);
       if(!flag){
           //printf("failed to create\n");
           //free struct page

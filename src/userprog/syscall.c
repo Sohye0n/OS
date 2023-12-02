@@ -9,6 +9,7 @@
 #include "threads/vaddr.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
+#include "vm/page.h"
   
 struct file{
   struct inode *inode;
@@ -23,6 +24,21 @@ syscall_init (void)
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
   lock_init(&file_lock);
+}
+
+void check_buffer(void* buffer, unsigned size){
+
+  void* chk_addr=(buffer);
+  //printf("check buffer!\n");
+  struct vm_entry* vme;
+  for(int i=0; i<size; i++){
+    //printf("checking addr : %p\n",chk_addr+i*8);
+    if(!is_user_vaddr(chk_addr+i*8)) exit(-1);
+    if(chk_addr+i*8<(void*)0x08048000 || chk_addr+i*8>= (void*)0xc0000000) exit(-1);
+    vme=search(chk_addr+i*8);
+    if(vme==NULL) exit(-1);
+    else if(vme->writable==false) exit(-1);
+  }
 }
 
 static void
@@ -68,14 +84,15 @@ syscall_handler (struct intr_frame *f UNUSED)
       f->eax=filesize((int)*(uint32_t*)(f->esp+4));
       break;
     case SYS_READ:
-      //printf("%d\n",(unsigned)*(uint32_t*)(f->esp+28));
       if(!is_user_vaddr(f->esp+4) || !is_user_vaddr(f->esp+8) || !is_user_vaddr(f->esp+12)) exit(-1);
-      //if->eax=read((int)*(uint32_t*)(f->esp+20),(void*)*(uint32_t*)(f->esp+24),(unsigned)*(uint32_t*)(f->esp+28));
-      //break;
+      //read 하려는 버퍼에 해당하는 vme가 존재하는지 체크
+      //check_buffer((void*)*(uint32_t*)(f->esp+8),(unsigned)*(uint32_t*)(f->esp+12));
       f->eax=read((int)*(uint32_t*)(f->esp+4),(void*)*(uint32_t*)(f->esp+8),(unsigned)*(uint32_t*)(f->esp+12));
-      break; 
+      break;
    case SYS_WRITE:
       if(!is_user_vaddr(f->esp+4) || !is_user_vaddr(f->esp+8) || !is_user_vaddr(f->esp+12)) exit(-1);
+      //write 하려는 버퍼에 해당하는 vme가 존재하는지 체크
+      //check_buffer((void*)*(uint32_t*)(f->esp+8),(unsigned)*(uint32_t*)(f->esp+12));
       f->eax=write((int)*(uint32_t*)(f->esp+4),(void*)*(uint32_t*)(f->esp+8),(unsigned)*(uint32_t*)(f->esp+12));
       break; 
     case SYS_SEEK:
@@ -212,6 +229,7 @@ int filesize (int fd)
 
 int read (int fd, void *buffer, unsigned size)
 {
+
   //printf("sys_read. fd : %d size :%d\n buf addr: %p buf in: %s\n",fd,size,buffer,buffer);
   //정상적으로 파일을 열 수 없음
   if(fd>thread_current()->fdindex) return -1;
