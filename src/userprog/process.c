@@ -24,8 +24,8 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 void get_filename(const char*, char*);
-bool load_to_pmemory(void* vaddr, struct vm_entry* vme);
-bool load_file_to_page(void* kaddr, struct vm_entry* vme);
+bool load_to_pmemory(void* vaddr, struct page* pg);
+bool load_file_to_page(void* kaddr, struct page* pg);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -195,6 +195,7 @@ start_process (void *file_name_)
   /*prj4*/
   //init hashtable
   vm_init(&thread_current()->vm_hash);
+  list_init(&thread_current()->mmap_list);
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -282,13 +283,56 @@ process_exit (void)
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
-  if (pd != NULL)
-    {  
 
-      // //clear all vme
-      lock_acquire(&frame_lock);
-      vm_clear(&thread_current()->vm_hash);
-      lock_release(&frame_lock);
+  //clear mmap entry
+  struct list_elem* start=list_begin(&thread_current()->mmap_list);
+  struct list_elem* end=list_end(&thread_current()->mmap_list);
+  struct list_elem* i,*v;
+  struct mmap_entry* mmap_cur;
+  struct list_elem* mmap_next;
+  
+  //search for all mmap_entry in mmap_list
+  for(i=start; i!=end; i=mmap_next){
+    //0. set next element (because we will delete & free current element)
+    mmap_next=list_next(i);
+    //1. get current elem's structure
+    mmap_cur=list_entry(i,struct mmap_entry,melem);
+
+    //search for all vme_entry in each mmap_entry
+    struct list_elem* start_v=list_begin(&mmap_cur->vme_list);
+    struct list_elem* end_v=list_end(&mmap_cur->vme_list);
+    struct page* pg_cur;
+    struct list_elem* pg_next;
+    for(v=start_v; v!=end_v; v=pg_next){
+      //0. set next element (because we will delete & free current element)
+      pg_next=list_next(v);
+      //1. get current elem's structure
+      pg_cur=list_entry(v,struct page, mmap_elem);
+      //2. if page is dirty => write it back to disk
+      if(pg_cur->is_loaded && pagedir_is_dirty(thread_current()->pagedir,pg_cur->vaddr)){
+        file_write_at(pg_cur->file, pg_cur->vaddr, pg_cur->read_bytes, pg_cur->offset);
+      }
+      //3. don't free pg. vm_clear() will free all at once.
+      list_remove(&pg_cur->mmap_elem);
+    }
+
+    //2. delete mmap_entry from mmap_list
+    list_remove(&mmap_cur->melem);
+    //3. free mmap_entry
+    free(mmap_cur);
+  }
+
+  lock_acquire(&frame_lock);
+  vm_clear(&thread_current()->vm_hash);
+  lock_release(&frame_lock);
+
+  if (pd != NULL)
+    {
+
+      // clear all vme
+      //lock_acquire(&frame_lock);
+      
+      //lock_release(&frame_lock);
 
       /* Correct ordering here is crucial.  We must set
          cur->pagedir to NULL before switching page directories,
@@ -306,7 +350,6 @@ process_exit (void)
     sema_up(&cur->state); 
     sema_down(&cur->mem);
 }
-
 /* Sets up the CPU for running user code in the current
    thread.
    This function is called on every context switch. */
@@ -683,20 +726,20 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
       /*do not load to physical memory
       add all vaddr to supplemental page table, vm_hash*/
-      struct vm_entry* vme=malloc(sizeof(struct vm_entry));
-      vme->type=BIN;
-      vme->vaddr=upage;
-      vme->writable=writable;
-      vme->is_loaded=false;
-      vme->offset=ofs;
-      vme->file=tmp;
-      vme->read_bytes=page_read_bytes;
-      vme->zero_bytes=page_zero_bytes;
+      struct page* pg=malloc(sizeof(struct page));
+      pg->type=BIN;
+      pg->vaddr=upage;
+      pg->writable=writable;
+      pg->is_loaded=false;
+      pg->offset=ofs;
+      pg->file=tmp;
+      pg->read_bytes=page_read_bytes;
+      pg->zero_bytes=page_zero_bytes;
       //printf("offset : %d\n",vme->offset);
       //printf("load - upage : %p\n",upage);
 
       //add vm entry to vm table
-      hash_insert(&thread_current()->vm_hash,&vme->hash_elem);
+      hash_insert(&thread_current()->vm_hash,&pg->hash_elem);
 
       /* Advance. */
       read_bytes -= page_read_bytes;
@@ -713,13 +756,13 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 static bool
 setup_stack (void **esp) 
 {
-  struct page *newpage;
-  newpage=malloc(sizeof(struct page));
+  struct frame *newframe;
+  newframe=malloc(sizeof(struct frame));
   bool success = false;
   void *vaddr = ((uint8_t *) PHYS_BASE) - PGSIZE;
 
   void* kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  newpage->physical_addr=kpage;
+  newframe->physical_addr=kpage;
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
@@ -731,19 +774,19 @@ setup_stack (void **esp)
       }
     }
   /*add this stack's vaddr to vm table*/
-  struct vm_entry* vme=malloc(sizeof(struct vm_entry));
-  vme->type=SWAP;
-  vme->vaddr=vaddr;
-  vme->writable=true;
-  vme->is_loaded=true;
-  vme->read_bytes=0;
-  vme->zero_bytes=PGSIZE;
-  newpage->thr=thread_current();
-  newpage->vme=vme;
+  struct page* pg=malloc(sizeof(struct page));
+  pg->type=SWAP;
+  pg->vaddr=vaddr;
+  pg->writable=true;
+  pg->is_loaded=true;
+  pg->read_bytes=0;
+  pg->zero_bytes=PGSIZE;
+  newframe->thr=thread_current();
+  newframe->vme=pg;
   lock_acquire(&frame_lock);
-  framelist_insert(&frame_list, newpage);
+  framelist_insert(&frame_list, newframe);
   lock_release(&frame_lock);
-  hash_insert(&thread_current()->vm_hash,&vme->hash_elem);
+  hash_insert(&thread_current()->vm_hash,&pg->hash_elem);
   //printf("stack's vaddr : %p %p\n",kpage,((uint8_t *) PHYS_BASE) - PGSIZE);
   return success;
 }
@@ -771,139 +814,139 @@ install_page (void *upage, void *kpage, bool writable)
 bool stack_growth(void* vaddr){
   //printf("ssss\n");
   //try to get a new page
-  void* new_page=palloc_get_page(PAL_USER);
+  void* new_frame=palloc_get_page(PAL_USER);
 
   //if user memory is full -> page replacement
-  if(new_page==NULL){
+  if(new_frame==NULL){
     lock_acquire(&frame_lock);
     page_replace(&frame_list);
-    new_page=palloc_get_page(PAL_USER);
+    new_frame=palloc_get_page(PAL_USER);
   }
 
   //make struct page and add to frame_list
-  struct page* page=malloc(sizeof(struct page));
-  page->physical_addr=new_page;
-  page->thr=thread_current();
+  struct frame* frame=malloc(sizeof(struct frame));
+  frame->physical_addr=new_frame;
+  frame->thr=thread_current();
 
   //create vm_entry
-  struct vm_entry* vme=malloc(sizeof(struct vm_entry));
-  vme->vaddr=vaddr;
-  vme->is_loaded=true;
-  vme->writable=true;
+  struct page* pg=malloc(sizeof(struct page));
+  pg->vaddr=vaddr;
+  pg->is_loaded=true;
+  pg->writable=true;
 
   //printf("kaddr : %p  |  uaddr : %p\n",new_page,vme->vaddr);
   //새로 받은 페이지를 현 프로세스의 페이지디렉토리에 넣어준다.
   //!!!중요!! 왜인지는 모르겠으나 hash에 insert해버리면 vme->vaddr 값이 바뀐다...
-  bool flag_install_page=install_page(pg_round_down(vme->vaddr),new_page,vme->writable);
+  bool flag_install_page=install_page(pg_round_down(pg->vaddr),new_frame,pg->writable);
 
   //put new page to page directory
   if(!flag_install_page){
     printf("failed flag_install_page");
     //free struct page
     //1. free current page
-    palloc_free_page(page->physical_addr);
+    palloc_free_page(frame->physical_addr);
     //2. remove current page from the frame_list
     //4. free struct page
-    free(page);
-    free(vme);
+    free(frame);
+    free(pg);
     lock_release(&frame_lock);
     return false;
   
 
     //push new entry to vm_hash
-    bool flag_insert_vme=vm_insert(&thread_current()->vm_hash,&vme->hash_elem);
+    bool flag_insert_vme=vm_insert(&thread_current()->vm_hash,&pg->hash_elem);
     if(!flag_insert_vme){
       printf("failed insert_vme");
       //free struct page
       //1. free current page
-      palloc_free_page(page->physical_addr);
+      palloc_free_page(frame->physical_addr);
       //2. remove current page from the frame_list
       //4. free struct page
-      free(page);
-      free(vme);
+      free(frame);
+      free(pg);
       lock_release(&frame_lock);
       return false;
     }
 
-    page->vme=vme;
+    frame->vme=pg;
     //add page to frame_list
-    framelist_insert(&frame_list, page);
+    framelist_insert(&frame_list, frame);
     //pagedir_set_accessed(page->thr->pagedir,page->vme->vaddr, true);
     lock_release(&frame_lock);
     return true;
   }
 }
 
-bool load_file_to_page(void* kaddr, struct vm_entry* vme){
+bool load_file_to_page(void* kaddr, struct page* pg){
       /* Load this page. */
-      if (file_read_at (vme->file, kaddr, vme->read_bytes, vme->offset) != (int) vme->read_bytes)
+      if (file_read_at (pg->file, kaddr, pg->read_bytes, pg->offset) != (int) pg->read_bytes)
         {
           palloc_free_page (kaddr);
           return false; 
         }
         //printf("%d\n",vme->read_bytes);
-      memset (kaddr + vme->read_bytes, 0, vme->zero_bytes);
+      memset (kaddr + pg->read_bytes, 0, pg->zero_bytes);
       //hex_dump(kaddr,kaddr,100,1);
       return true;
 }
 
-bool load_to_pmemory(void* vaddr, struct vm_entry* vme){
+bool load_to_pmemory(void* vaddr, struct page* pg){
     //printf("load_to_pmemory\n");
     lock_acquire(&frame_lock);
     //proces's page -> get from user memory pool
-    void* newpage=palloc_get_page(PAL_USER);
+    void* newframe=palloc_get_page(PAL_USER);
     int load_flag=false;
     //printf("newpage : %p  ||   page address: %p\n",newpage,pg_round_down(vme->vaddr));
     
     //if there was enough space
-    if(newpage){
+    if(newframe){
       //make struct page and add to frame_list(LRU)
-      struct page* page=malloc(sizeof(struct page));
-      page->physical_addr=newpage;
-      page->thr=thread_current();
+      struct frame* frame=malloc(sizeof(struct frame));
+      frame->physical_addr=newframe;
+      frame->thr=thread_current();
 
       //load file to page
 
       //if BIN -> load from disk
-      if(vme->type==BIN){
+      if(pg->type==BIN || pg->type==FILE_VM){
         //printf("here\n");
-        load_flag=load_file_to_page(page->physical_addr,vme);
+        load_flag=load_file_to_page(frame->physical_addr,pg);
         //printf("load result : %d\n",load_flag);
         if(!load_flag){
           //free struct page
           //1. free current page
-          palloc_free_page(page->physical_addr);
+          palloc_free_page(frame->physical_addr);
           //4. free struct page
-          free(page);
+          free(frame);
           lock_release(&frame_lock);
           return false;
         }        
       }
 
-      else if(vme->type==SWAP){
+      else if(pg->type==SWAP){
         //printf("newpage-swapin\n");
-        swap_in(vme->swap_slot,page->physical_addr);
+        swap_in(pg->swap_slot,frame->physical_addr);
       }
 
       //now add page to page directory
       bool flag;
-      flag=install_page(vme->vaddr,newpage,vme->writable);
+      flag=install_page(pg->vaddr,newframe,pg->writable);
       if(!flag){
           printf("failed to create\n");
           //free struct page
           //1. free current page
-          palloc_free_page(page->physical_addr);
+          palloc_free_page(frame->physical_addr);
           //4. free struct page
-          free(page);
+          free(frame);
           lock_release(&frame_lock);
           return false;
       }
 
       //insert vme to page
-      vme->is_loaded=true;
-      page->vme=vme;
+      pg->is_loaded=true;
+      frame->vme=pg;
       //add page to frame_list
-      framelist_insert(&frame_list, page);
+      framelist_insert(&frame_list, frame);
       lock_release(&frame_lock);
       return true;
     }
@@ -915,44 +958,44 @@ bool load_to_pmemory(void* vaddr, struct vm_entry* vme){
       page_replace(&frame_list);
       //printf("step 1 end\n");
       //2. get new page
-      void* newpage_replaced=palloc_get_page(PAL_USER);
+      void* newframe_replaced=palloc_get_page(PAL_USER);
       
       //2. make struct page
       //printf("%d",thread_current()->tid);
-      struct page* page=malloc(sizeof(struct page));
+      struct frame* frame=malloc(sizeof(struct frame));
       //printf("%d",thread_current()->tid);
-      page->thr=thread_current();
+      frame->thr=thread_current();
       //printf("newpage_replaced : %p\n",newpage_replaced);
-      page->physical_addr=newpage_replaced;
-      vme->is_loaded=true;
-      page->vme=vme;
+      frame->physical_addr=newframe_replaced;
+      pg->is_loaded=true;
+      frame->vme=pg;
       
       //3. now add page to page directory
       bool flag;
-      flag=install_page(vme->vaddr,page->physical_addr,vme->writable);
+      flag=install_page(pg->vaddr,frame->physical_addr,pg->writable);
       if(!flag){
           //printf("failed to create\n");
           //free struct page
           //1. free current page
-          palloc_free_page(page->physical_addr);
+          palloc_free_page(frame->physical_addr);
           //2. remove current page from the frame_list
-          framelist_delete(&frame_list,page);
+          framelist_delete(&frame_list,frame);
           //4. free struct page
-          free(page);
+          free(frame);
           lock_release(&frame_lock);
           return false;
       }
       //add page to frame_list
-      framelist_insert(&frame_list, page);
-      if(vme->type==BIN){
+      framelist_insert(&frame_list, frame);
+      if(pg->type==BIN||pg->type==FILE_VM){
         //printf("trying to load\n");
-        load_flag=load_file_to_page(page->physical_addr,vme);
+        load_flag=load_file_to_page(frame->physical_addr,pg);
         //if(!load_flag) printf("sibal..\n");
       }
-      else if(vme->type==SWAP){
+      else if(pg->type==SWAP){
         //printf("trying to swap-in\n");
         //printf("swap slot : %d\n",vme->swap_slot);
-        swap_in(vme->swap_slot,newpage_replaced);
+        swap_in(pg->swap_slot,newframe_replaced);
         // for(int i=0; i<8; i++){
         //   printf("------------%dth----------------------\n",i);
         //   hex_dump(newpage_replaced+i*512,newpage_replaced+i*512,512,1);

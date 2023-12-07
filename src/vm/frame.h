@@ -12,9 +12,9 @@
 #include "threads/vaddr.h"
 
 void framelist_init(void);
-void framelist_insert(struct list* frame_list, struct page* page);
-void framelist_delete(struct list* frame_list, struct page* page);
+void framelist_insert(struct list* frame_list, struct frame* frame);
+void framelist_delete(struct list* frame_list, struct frame* frame);
 void page_replace(struct list* frame_list);
-void page_delete_func(struct vm_entry* vme);
+void page_delete_func(struct page* pg);
 struct list_elem* cur;
 #endif Frame

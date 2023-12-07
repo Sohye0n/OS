@@ -120,6 +120,7 @@ struct thread
    /*prj4*/
    //virtual address를 저장할 해시테이블
    struct hash vm_hash;
+   struct list mmap_list;
    /*prj4*/
 
     /* Owned by thread.c. */

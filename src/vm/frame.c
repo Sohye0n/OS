@@ -13,13 +13,13 @@ void framelist_init(void){
 }
 
 //insert page at the end of the list
-void framelist_insert(struct list* frame_list, struct page* page){
-    list_push_back(frame_list,&page->pelem);
+void framelist_insert(struct list* frame_list, struct frame* frame){
+    list_push_back(frame_list,&frame->pelem);
     //printf("insert : %p\n",list_entry(list_end(frame_list)->prev,struct page,pelem)->vme->vaddr);
 }
 
 //delete page at the framelist
-void framelist_delete(struct list* frame_list, struct page* page){
+void framelist_delete(struct list* frame_list, struct frame* frame){
     //printf("delete\n");
     // struct list_elem* start_elem=list_front(frame_list);
     // struct list_elem* end_elem=list_end(frame_list);
@@ -61,19 +61,19 @@ void framelist_delete(struct list* frame_list, struct page* page){
     //         }
     //     }
     // }
-    list_remove(&page->pelem);
+    list_remove(&frame->pelem);
 }
 
 //delete
-void page_delete_func(struct vm_entry* vme){
+void page_delete_func(struct page* pg){
     //1. find page
     struct list_elem* start=list_begin(&frame_list);
     struct list_elem* end=list_end(&frame_list);
     struct list_elem* cur;
-    struct page* pg;
+    struct frame* frame;
     for(cur=start; cur!=end; cur=list_next(cur)){
-        pg=list_entry(cur,struct page, pelem);
-        if(pg->vme==vme) break;
+        frame=list_entry(cur,struct frame, pelem);
+        if(frame->vme==pg) break;
     }
 
     //test
@@ -81,21 +81,21 @@ void page_delete_func(struct vm_entry* vme){
 
     //2. free physical memory
     //printf("step2\nkaddr : %p\n",pg->physical_addr);
-    palloc_free_page(pg->physical_addr);
+    palloc_free_page(frame->physical_addr);
 
     //3. delete page
     //3-1 check if page pointer "cur" points this page
     //printf("step 3\n");
-    if(cur==pg){
+    if(cur==frame){
         //if so, move cur to next page
         //check if pg is last page in the framelist
-        if(list_next(pg)==end) cur=list_begin(&frame_list);
-        else cur=list_next(pg);
+        if(list_next(frame)==end) cur=list_begin(&frame_list);
+        else cur=list_next(frame);
     }
     //3-2 remove page from framelist
-    framelist_delete(&frame_list,pg);
+    framelist_delete(&frame_list,frame);
     //3-3 free struct page
-    free(pg);
+    free(frame);
 
 }
 
@@ -107,9 +107,9 @@ void page_replace(struct list* frame_list){
     //1.find replacable page ()
     //start from saved spot
     //struct list_elem* cur=frame_pointer;
-    struct page* pg;
+    struct frame* frame;
     bool is_accessed;
-    void* newpage;
+    void* newframe;
 
     //if frame list is empty
     if(cur==NULL){
@@ -129,34 +129,34 @@ void page_replace(struct list* frame_list){
             //thread_current()->tid
             //);
             //get certain page
-            pg=list_entry(cur,struct page,pelem);
+            frame=list_entry(cur,struct frame,pelem);
             //printf("current page's vaddr : %p\n",pg->vme->vaddr);
             //check if accessed
-            is_accessed=pagedir_is_accessed(pg->thr->pagedir,pg->vme->vaddr);
+            is_accessed=pagedir_is_accessed(frame->thr->pagedir,frame->vme->vaddr);
             
             //if not accessed -> change to accessed & replace
             if(!is_accessed){
                 //printf("current page's vaddr : %p\n",pg->vme->vaddr);
                 //change to accessed
-                pagedir_set_accessed(pg->thr->pagedir,pg->vme->vaddr,true); 
+                pagedir_set_accessed(frame->thr->pagedir,frame->vme->vaddr,true); 
                 
                 //replace
                 //0. if page is dirty OR if it was swapped ->  swap out to disk
-                if(pagedir_is_dirty(pg->thr->pagedir, pg->vme->vaddr) || pg->vme->type==SWAP){
+                if(pagedir_is_dirty(frame->thr->pagedir, frame->vme->vaddr) || frame->vme->type==SWAP){
                     //근데 한번 swap out된 페이지는 왜 다시 swap out 되어야 하나...?
                     //if(pg->vme->type==SWAP) printf("!!!!!!!!swap!!!!!!!!!!\n");
-                    int bitmapidx=swap_out(pg->physical_addr);
+                    int bitmapidx=swap_out(frame->physical_addr);
                     if(bitmapidx<0) printf("swap_out error\n");
-                    pg->vme->type=SWAP;
-                    pg->vme->swap_slot=bitmapidx;
+                    frame->vme->type=SWAP;
+                    frame->vme->swap_slot=bitmapidx;
                 }
                 //1. free current page
-                pagedir_clear_page (pg->thr->pagedir, pg->vme->vaddr);
-                palloc_free_page(pg->physical_addr);
+                pagedir_clear_page (frame->thr->pagedir, frame->vme->vaddr);
+                palloc_free_page(frame->physical_addr);
                 //4. set cur page's vme->is_loaded to false
-                pg->vme->is_loaded=false;
+                frame->vme->is_loaded=false;
                 //2. remove current page from the frame_list
-                framelist_delete(frame_list,pg);
+                framelist_delete(frame_list,frame);
                 //3. set cur to next page
                 
                 cur=list_next(cur);
@@ -169,13 +169,13 @@ void page_replace(struct list* frame_list){
                 //3. return
                 //printf("next : %p || %d(thread : %d)\n",list_entry(cur,struct page,pelem)->vme->vaddr,
                 //pagedir_is_accessed(pg->thr->pagedir,pg->vme->vaddr), thread_current()->tid);
-                return newpage;
+                return newframe;
             }
 
             //if accessed -> search next. search until not accessed page found
             else{
                 //set current page to not accessed
-                pagedir_set_accessed(pg->thr->pagedir,pg->vme->vaddr,false);
+                pagedir_set_accessed(frame->thr->pagedir,frame->vme->vaddr,false);
                 //if(pg->vme->vaddr==0x804a000) printf("%d\n",pagedir_is_accessed(pg->thr->pagedir,pg->vme->vaddr));
                 //search next
                 //if cur is last element in framelist -> set cur to first

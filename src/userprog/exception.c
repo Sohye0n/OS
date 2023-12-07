@@ -389,13 +389,13 @@ page_fault (struct intr_frame *f)
       //해시테이블을 뒤져서 해당 vaddr을 가진 vm_entry를 가져와서 이걸 물리메모리에 올려야함.
 
       //1. fault가 발생한 vaddr을 가진 vm_entry를 가져온다
-      struct vm_entry* vme=search(fault_addr);
+      struct page* pg=search(fault_addr);
       //vme가 존재한다 -> 물리메모리에 load해주면 됨
-      if(vme){
+      if(pg){
          //2. 얘를 물리 메모리에 올려야하므로 is_load 변수를 true로 해준다.
          //printf("have to load : %p\n",vme->vaddr);
-         vme->is_loaded=true;
-         bool success=load_to_pmemory(fault_addr,vme);
+         pg->is_loaded=true;
+         bool success=load_to_pmemory(fault_addr,pg);
          if(!success){
             printf("failed to load\n");
             exit(-1);

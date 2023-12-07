@@ -26,20 +26,6 @@ syscall_init (void)
   lock_init(&file_lock);
 }
 
-void check_buffer(void* buffer, unsigned size){
-
-  void* chk_addr=(buffer);
-  //printf("check buffer!\n");
-  struct vm_entry* vme;
-  for(int i=0; i<size; i++){
-    //printf("checking addr : %p\n",chk_addr+i*8);
-    if(!is_user_vaddr(chk_addr+i*8)) exit(-1);
-    if(chk_addr+i*8<(void*)0x08048000 || chk_addr+i*8>= (void*)0xc0000000) exit(-1);
-    vme=search(chk_addr+i*8);
-    if(vme==NULL) exit(-1);
-    else if(vme->writable==false) exit(-1);
-  }
-}
 
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
@@ -115,8 +101,90 @@ syscall_handler (struct intr_frame *f UNUSED)
       if(!is_user_vaddr(f->esp+4) || !is_user_vaddr(f->esp+8) || !is_user_vaddr(f->esp+12) || !is_user_vaddr(f->esp+16)) exit(-1);
       f->eax=max_of_four_int((int)*(uint32_t*)(f->esp+4),(int)*(uint32_t*)(f->esp+8),(int)*(uint32_t*)(f->esp+12),(int)*(uint32_t*)(f->esp+16));
       break;
+    case SYS_MMAP:
+      if(!is_user_vaddr(f->esp+4)||!is_user_vaddr(f->esp+8)){
+        printf("error\n");
+        exit(-1);
+      }
+      f->eax=mmap((int)*(uint32_t*)(f->esp+4),(unsigned)*(uint32_t*)(f->esp+8));
+      break;
   }
 }
+
+int mmap(int fd, void* addr){
+  //1. 조건체크
+  //1-1 해당하는 fd가 존재하는가?
+  if(thread_current()->fdindex<=fd) {
+    printf("fd error\n");
+    return -1;
+  }
+  //1-2 addr이 페이지의 시작주소인가?
+  //mmap은 사용자가 입력한 가상주소에 바로 매핑해주기 때문에 이를 체크해야함.
+  if((addr-PHYS_BASE) % PGSIZE){
+    printf("allign error\n");
+    return -1;
+  }
+
+  lock_acquire(&file_lock);
+  //2.fd에 해당하는 파일을 reopen 하자
+  struct file* file=file_reopen(thread_current()->fd[fd]);
+
+  //3. 종료 조건 체크
+  //file의 size가 0보다 큰가?
+  int size=file_length(file);
+  if(size==0){
+    printf("size is 0\n");
+    return -1;
+  }
+  //addr+size의 위치가 유저 영역을 넘어서는가?
+  if(!is_user_vaddr(addr+size)){
+    printf("out of bound\n");
+    return -1;
+  }
+  //addr ~ addr+size 의 가상 주소가 이미 할당되었는가? << 이미 할당되었다면 heap과 stack 사이의 빈 공간이 아님.
+  //vme는 프로세스가 종료되지 않는 이상 사라지지 않고, 연속적으로 할당되기 때문에 시작과 끝만 체크하면 된다.
+  if(search(addr)||search(addr+size)){
+    lock_release(&file_lock);
+    printf("vaddr error\n");
+    return -1;
+  }
+  //size 만큼 할당해줄 물리 페이지가 있는가? << 이건 당연히 있음. swap을 해오면 되기 때문에.
+
+  //3. mmap된 파일에 대한 struct mmap_entry 객체 생성
+  struct mmap_entry* mf=(struct mmap_entry*)malloc(sizeof(struct mmap_entry));
+  if(list_empty(&thread_current()->mmap_list)) mf->mid=0;
+  else mf->mid=list_size(&thread_current()->mmap_list);
+  list_init(&mf->vme_list);
+  mf->file=file;
+  list_push_back(&thread_current()->mmap_list,&mf->melem);
+  //printf("size : %d\n",list_size(&thread_current()->mmap_list));
+
+  //4. 해당하는 파일 사이즈에 맞추어 page 생성
+  for(int i=0; i<size/PGSIZE; i++){
+    struct page* pg=(struct page*)malloc(sizeof(struct page));
+    //잔여 바이트와 PGSIZE를 비교.
+    //PGSIZE가 더 크다면 잔여바이트를. 아니면 PGSIZE를.
+    size_t page_read_bytes = size-i*PGSIZE < PGSIZE ? size-i*PGSIZE : PGSIZE;
+    size_t page_zero_bytes = PGSIZE - page_read_bytes;
+
+    pg->type=FILE_VM;
+    pg->vaddr=addr+i*PGSIZE;
+    pg->writable=true;
+    pg->is_loaded=false;
+    pg->offset=i*PGSIZE;
+    pg->file=file;
+    pg->read_bytes=page_read_bytes;
+    pg->zero_bytes=page_zero_bytes;
+    hash_insert(&thread_current()->vm_hash,&pg->hash_elem);
+
+    list_push_back(&mf->vme_list,&pg->mmap_elem);
+  }
+
+  //5. 각 vm_entry들마다 물리페이지 매핑 << 이건 여기서 하는게 아님. 페이지폴트가 발생하면 물리페이지가 할당되고, 거기에 파일의 내용이 복사됨.
+  lock_release(&file_lock);
+  return mf->mid;
+}
+
 
 void halt (void) 
 {
@@ -190,10 +258,10 @@ int open (const char *file)
     //처음~마지막 중 close된 것이 있다면 그 자리에
     for(int i=3; i<thread_current()->fdindex; i++){
       if(thread_current()->fd[i]==NULL){
-	thread_current()->fd[i]=f;
-	//printf("fd : %d\n",i);
-	lock_release(&file_lock);
-	return i;
+        thread_current()->fd[i]=f;
+        //printf("fd : %d\n",i);
+        lock_release(&file_lock);
+        return i;
       }
     }
     //close된 파일이 없다면 제일 마지막 위치에

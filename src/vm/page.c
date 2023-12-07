@@ -5,33 +5,33 @@
 //return hash_elem's hash value
 static unsigned vm_hash_func(const struct hash_elem *e, void *aux){
     //find vm_entry where placed inside the hash_elem
-    struct vm_entry *vme=hash_entry(e,struct vm_entry,hash_elem);
+    struct page *pg=hash_entry(e,struct page,hash_elem);
     //return hash_elem's hash
     //hash_int->hash_bytes << return hash value
-    return hash_int(vme->vaddr);
+    return hash_int(pg->vaddr);
 }
 
 //return vm_entry with smaller vaddr
 static bool vm_less_func(const struct hash_elem *a, const struct hash_elem *b, void *aux){
-    struct vm_entry* va=hash_entry(a,struct vm_entry,hash_elem);
-    struct vm_entry* vb=hash_entry(b,struct vm_entry,hash_elem);
+    struct page* pa=hash_entry(a,struct page,hash_elem);
+    struct page* pb=hash_entry(b,struct page,hash_elem);
     //printf("va->vaddr : %p   |   vb->vaddr : %p\n",va->vaddr,vb->vaddr);
     //true if a < b
-    return (va->vaddr<vb->vaddr);
+    return (pa->vaddr<pb->vaddr);
 }
 
 void vm_entry_delete_func(struct hash_elem* e,void* aux){
     //find vm_entry (vm_entry : includes hash_elem e)
-    struct vm_entry *vme=hash_entry(e,struct vm_entry,hash_elem);
-    if(vme){
+    struct page *pg=hash_entry(e,struct page,hash_elem);
+    if(pg){
         //if loaded -> free physical memory & free page which includes vme
-        if(vme->is_loaded){
-            page_delete_func(vme);
+        if(pg->is_loaded){
+            page_delete_func(pg);
             //clear virtual memory
-            pagedir_clear_page(thread_current()->pagedir,vme->vaddr);
+            pagedir_clear_page(thread_current()->pagedir,pg->vaddr);
         }
         //free vm_entry
-        free(vme);
+        free(pg);
     }
 }
 
@@ -56,9 +56,9 @@ bool vm_insert(struct hash* vm, struct hash_elem* e){
 }
 
 //해시테이블에서 vaddr을 가진 vm_entry를 찾아옴
-struct vm_entry *search(void* vaddr){
-    struct vm_entry mikki;
-    struct vm_entry* real;
+struct page *search(void* vaddr){
+    struct page mikki;
+    struct page* real;
     struct hash_elem* hash_elem;
 
     //vme에는 각 페이지의 주소가 있으므로, page_addr을 갖는 vme를 찾음
@@ -74,7 +74,7 @@ struct vm_entry *search(void* vaddr){
     }
     //찾는 vaddr에 해당하는 hash_elem이 있다면 이를 포함하는 vme를 찾아옴.
     else{
-        real=hash_entry(hash_elem,struct vm_entry,hash_elem);
+        real=hash_entry(hash_elem,struct page,hash_elem);
         return real;
     }
 }

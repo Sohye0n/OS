@@ -14,18 +14,26 @@
 vm_entry는 프로세스가 사용하는 모든 메모리가 갖고 있음.
 page는 이 중 물리 메모리(stack)에 load된 vme만을 가리킴. 
 */
-struct page{
+
+struct mmap_entry {
+    int mid;
+    struct file* file;
+    struct list_elem melem;
+    struct list vme_list;
+};
+
+struct frame{
     //physical address
     void* physical_addr;
     //vm_entry
-    struct vm_entry* vme;
+    struct page* vme;
     //list elem
     struct list_elem pelem;
     //to get page directory
     struct thread* thr;
 };
 
-struct vm_entry{
+struct page{
     uint8_t type;
     void* vaddr;
     bool writable;
@@ -44,5 +52,5 @@ bool vm_insert(struct hash* vm, struct hash_elem* e);
 void vm_entry_delete_func(struct hash_elem* e,void* aux);
 void vm_clear(struct hash* vm);
 //return vm_entry with such vaddr
-struct vm_entry *search(void* vaddr);
+struct page *search(void* vaddr);
 #endif
