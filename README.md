@@ -9,17 +9,21 @@ main을 비롯한 각종 브랜치는 수업을 들을 당시에 사용했던 �
 
 ## ✍️ 보고서
 ### prj1
+- all pass
 - 커널 스택, 시스템콜
 - 보고서는 <a href="https://github.com/user-attachments/files/17356822/prj1.pdf">여기</a> 있습니다.
 
 ### prj2
+- all pass
 - 커널 스택, 시스템콜
 - 보고서는 <a href="https://github.com/user-attachments/files/17356821/prj2.pdf">여기</a> 있습니다.
 
 ### prj3
+- all pass
 - 스레드 스케줄링
 - 보고서는 <a href="https://github.com/user-attachments/files/17356820/prj3.pdf">여기</a> 있습니다.
 
 ### prj4
+- all pass
 - 가상 메모리
 - 보고서는 <a href="https://github.com/user-attachments/files/17356819/prj4.pdf">여기</a> 있습니다.
